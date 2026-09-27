@@ -26,7 +26,7 @@ services:
     container_name: observatorio_frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3080}:80"
     depends_on:
       backend:
         condition: service_healthy

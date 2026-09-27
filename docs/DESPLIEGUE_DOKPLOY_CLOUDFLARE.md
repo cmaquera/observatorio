@@ -85,7 +85,7 @@ En la pestaña **Public Hostnames**:
 2. **Domain**: Selecciona tu dominio registrado en Cloudflare (ejemplo: `tudominio.com`).
 3. **Service**:
    * **Type**: `HTTP`
-   * **URL**: `localhost:3000` (o la IP local de tu Ubuntu: `http://192.168.1.XX:3000`).
+   * **URL**: `localhost:3080` (o la IP local de tu Ubuntu: `http://192.168.1.XX:3080`).
 4. Haz clic en **Save Tunnel**.
 
 ¡Listo! A partir de este momento, cualquier petición a `https://observatorio.tudominio.com` llegará de forma directa, cifrada y protegida por Cloudflare a tu servidor local.
@@ -122,7 +122,7 @@ Una vez que tengas tu servidor Ubuntu con Dokploy corriendo (usualmente en `http
 3. Puedes observar el log de construcción en tiempo real en la pestaña **Deployments / Logs**.
 
 ### Paso 4.5: Probar el Acceso
-* En tu red local: Accede a `http://<IP_UBUNTU>:3000` y verás la aplicación cargando de inmediato.
+* En tu red local: Accede a `http://<IP_UBUNTU>:3080` y verás la aplicación cargando de inmediato.
 * En internet: Ingresa a `https://observatorio.tudominio.com` y verás tu plataforma funcionando con certificado SSL seguro de Cloudflare.
 
 ---
