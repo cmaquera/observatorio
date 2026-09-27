@@ -160,6 +160,7 @@ observatorio/
 │   │   └── main.py                  # Instancia principal de la aplicación FastAPI
 │   ├── data/
 │   │   └── observatorio.db          # Base de datos SQLite analítica inicial
+│   ├── Dockerfile                   # Imagen Docker para el backend FastAPI
 │   ├── requirements.txt             # Dependencias del backend Python
 │   ├── run_server.py                # Lanzador del servidor Uvicorn
 │   ├── test_api.py                  # Pruebas automatizadas de los endpoints REST
@@ -181,12 +182,16 @@ observatorio/
 │   │   ├── App.jsx                  # Componente principal de la aplicación
 │   │   ├── index.css                # Estilos globales y utilidades Tailwind
 │   │   └── main.jsx                 # Punto de entrada de React
+│   ├── Dockerfile                   # Multi-stage Dockerfile para React + Nginx
+│   ├── nginx.conf                   # Configuración Nginx de producción y reverse proxy
 │   ├── package.json                 # Dependencias y scripts de Node.js
 │   ├── tailwind.config.js           # Configuración de Tailwind CSS
 │   └── vite.config.js               # Configuración del bundler Vite
 ├── docs/
 │   ├── ARQUITECTURA.md              # Documentación técnica profunda de la arquitectura
+│   ├── DESPLIEGUE_DOKPLOY_CLOUDFLARE.md # Guía paso a paso de Dokploy + Cloudflare
 │   └── REGLAS_AUDITORIA.md          # Manual de reglas de auditoría y cálculo del ISR
+├── docker-compose.yml               # Orquestación de contenedores para Dokploy
 ├── start_project.ps1                # Script PowerShell de inicio rápido unificado
 ├── .gitignore                       # Configuración de exclusiones de Git
 └── README.md                        # Documentación principal del proyecto
@@ -252,6 +257,15 @@ npm install
 npm run dev
 ```
 - Aplicación web accesible en: `http://localhost:5173`
+
+---
+
+### Opción 3: Despliegue en Producción con Dokploy (Ubuntu Local) + Cloudflare
+El repositorio incluye configuración de **Docker Compose** lista para producción en Dokploy:
+1. En Dokploy (servidor Ubuntu), crea un servicio de tipo **Compose** apuntando a este repositorio (`cmaquera/observatorio`).
+2. Configura el túnel de **Cloudflare Tunnel (Zero Trust)** apuntando tu dominio a `http://localhost:3000` (sin necesidad de abrir puertos en tu router).
+3. Consulta el manual paso a paso con capturas y comandos en:  
+   👉 **[Guía de Despliegue en Dokploy y Cloudflare](docs/DESPLIEGUE_DOKPLOY_CLOUDFLARE.md)**.
 
 ---
 

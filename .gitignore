@@ -44,6 +44,7 @@ pnpm-debug.log*
 # Sistema Operativo y Editores
 .DS_Store
 Thumbs.db
+*.lnk
 .idea/
 .vscode/
 *.swp

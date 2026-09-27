@@ -1,0 +1,16 @@
+__pycache__
+*.py[cod]
+*$py.class
+.venv
+venv
+ENV
+env
+.git
+.gitignore
+.pytest_cache
+data/cache_adjuntos
+*.db-wal
+*.db-shm
+*.db-journal
+test_*.py
+scratch*.py
