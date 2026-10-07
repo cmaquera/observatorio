@@ -175,6 +175,12 @@ docker logs -f observatorio_frontend
 # Ejecutar el pipeline ETL manual dentro del contenedor para actualizar datos
 docker exec -it observatorio_backend python -m app.etl.runner --region CUSCO --limit 500
 
+# Carga inicial completa de todo el Perú (sin enriquecimiento en lote para máxima velocidad)
+docker exec -it observatorio_backend python -m app.etl.runner --region "" --limit 0 --skip-enrich
+
+# Tarea programada recomendada en Dokploy / Crontab (todos los domingos 3:00 AM)
+# 0 3 * * 0 docker exec observatorio_backend python -m app.etl.runner --region "" --limit 0 --skip-enrich
+
 # Respaldar la base de datos SQLite persistida
 docker cp observatorio_backend:/app/data/observatorio.db ~/backup_observatorio_$(date +%F).db
 ```

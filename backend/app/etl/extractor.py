@@ -15,9 +15,15 @@ def stream_mef_csv(
     sin cargar los 235 MB completos en RAM. Filtra en vuelo por departamento si se especifica.
     """
     print(f"[ETL Extractor] Conectando a fuente MEF: {url}...")
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Observatorio Obras Publicas Peru)"})
-    
-    with urllib.request.urlopen(req, timeout=45) as response:
+    is_http = str(url).startswith("http://") or str(url).startswith("https://")
+    if is_http:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Observatorio Obras Publicas Peru)"})
+        stream_ctx = urllib.request.urlopen(req, timeout=45)
+    else:
+        file_path = str(url).replace("file:///", "").replace("file://", "")
+        stream_ctx = open(file_path, "rb")
+
+    with stream_ctx as response:
         buffer = ""
         header_parsed = False
         reader = None

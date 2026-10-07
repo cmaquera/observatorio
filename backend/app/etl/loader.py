@@ -6,44 +6,61 @@ def cargar_lote(db: Session, batch: List[Dict[str, Any]]) -> int:
     """
     Inserta o actualiza un lote de inversiones con sus evaluaciones de riesgo,
     contratos y documentos asociados en una única transacción de base de datos.
+    Optimizado con búsquedas y eliminaciones por lote para máximo rendimiento en SQLite.
     """
     if not batch:
         return 0
 
     inserted = 0
     try:
+        cuis = [item["inversion"]["cui"] for item in batch]
+
+        # Búsqueda en bloque de registros existentes en el lote actual
+        existing_inversiones = {
+            inv.cui: inv
+            for inv in db.query(Inversion).filter(Inversion.cui.in_(cuis)).all()
+        }
+        existing_evals = {
+            ev.cui: ev
+            for ev in db.query(EvaluacionRiesgo).filter(EvaluacionRiesgo.cui.in_(cuis)).all()
+        }
+
+        # Limpiar contratos y documentos antiguos para los CUIs de este lote
+        db.query(ContratoEmpresa).filter(ContratoEmpresa.cui.in_(cuis)).delete(synchronize_session=False)
+        db.query(DocumentoFuente).filter(DocumentoFuente.cui.in_(cuis)).delete(synchronize_session=False)
+
         for item in batch:
             inv_dict = item["inversion"]
             cui = inv_dict["cui"]
 
-            # Verificar si ya existe
-            existing = db.query(Inversion).filter(Inversion.cui == cui).first()
-            if existing:
+            # Inversión (Insert o Update)
+            if cui in existing_inversiones:
+                inv_obj = existing_inversiones[cui]
                 for key, val in inv_dict.items():
-                    setattr(existing, key, val)
-                inv_obj = existing
+                    setattr(inv_obj, key, val)
             else:
                 inv_obj = Inversion(**inv_dict)
                 db.add(inv_obj)
+                existing_inversiones[cui] = inv_obj
                 inserted += 1
 
-            # Evaluación de riesgo
+            # Evaluación de riesgo (Insert o Update)
             eval_dict = item["evaluacion"]
-            existing_eval = db.query(EvaluacionRiesgo).filter(EvaluacionRiesgo.cui == cui).first()
-            if existing_eval:
+            if cui in existing_evals:
+                ev_obj = existing_evals[cui]
                 for key, val in eval_dict.items():
-                    setattr(existing_eval, key, val)
+                    setattr(ev_obj, key, val)
             else:
-                db.add(EvaluacionRiesgo(**eval_dict))
+                ev_obj = EvaluacionRiesgo(**eval_dict)
+                db.add(ev_obj)
+                existing_evals[cui] = ev_obj
 
             # Contratos
-            db.query(ContratoEmpresa).filter(ContratoEmpresa.cui == cui).delete()
-            for c in item["contratos"]:
+            for c in item.get("contratos", []):
                 db.add(ContratoEmpresa(**c))
 
             # Documentos
-            db.query(DocumentoFuente).filter(DocumentoFuente.cui == cui).delete()
-            for d in item["documentos"]:
+            for d in item.get("documentos", []):
                 db.add(DocumentoFuente(**d))
 
         db.commit()

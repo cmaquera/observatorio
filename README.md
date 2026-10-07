@@ -302,6 +302,9 @@ python -m app.etl.runner --region LIMA --limit 1000
 
 # Extraer a nivel nacional (sin filtro de región):
 python -m app.etl.runner --region "" --limit 2000
+
+# Carga masiva completa de todo el Perú (sin límite y sin llamadas externas en lote):
+python -m app.etl.runner --region "" --limit 0 --skip-enrich
 ```
 
 El runner realiza automáticamente:
@@ -309,8 +312,8 @@ El runner realiza automáticamente:
 2. Limpieza de datos numéricos y geográficos.
 3. Normalización con el catálogo nacional de Ubigeos del INEI.
 4. Cálculo del Índice de Severidad de Riesgo (ISR).
-5. Ingesta por lotes ACID a SQLite.
-6. Reconciliación en vivo con SEACE y el Sistema de Seguimiento de Inversiones (SSI).
+5. Ingesta por lotes ACID optimizada a SQLite (upsert transaccional).
+6. Reconciliación en vivo con SEACE y el Sistema de Seguimiento de Inversiones (SSI) (omitiendo con `--skip-enrich` para cargas masivas desatendidas).
 
 ---
 
