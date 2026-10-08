@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Filter, RotateCcw, AlertTriangle } from 'lucide-react';
+import { MapPin, RotateCcw, AlertTriangle, Compass, Globe, Navigation, BookmarkCheck, Loader2 } from 'lucide-react';
 import { getDepartamentos, getProvincias, getDistritos } from '../services/api';
+import { saveGeoPreference } from '../services/geoDetector';
 
-export default function GeoFilterBar({ filters, setFilters, onFilterChange }) {
+export default function GeoFilterBar({
+  filters,
+  setFilters,
+  geoStatus,
+  setGeoStatus,
+  onGpsDetect,
+  gpsLoading,
+  gpsError
+}) {
   const [departamentos, setDepartamentos] = useState([]);
   const [provincias, setProvincias] = useState([]);
   const [distritos, setDistritos] = useState([]);
@@ -55,6 +64,15 @@ export default function GeoFilterBar({ filters, setFilters, onFilterChange }) {
       provincia: '',
       distrito: ''
     }));
+    saveGeoPreference({ departamento: val, provincia: '', distrito: '' });
+    if (setGeoStatus) {
+      setGeoStatus({
+        loading: false,
+        source: 'manual',
+        label: val || 'Todo el Perú',
+        detail: 'Preferencia guardada en tu navegador'
+      });
+    }
   };
 
   const handleProvChange = (e) => {
@@ -64,6 +82,15 @@ export default function GeoFilterBar({ filters, setFilters, onFilterChange }) {
       provincia: val,
       distrito: ''
     }));
+    saveGeoPreference({ departamento: filters.departamento, provincia: val, distrito: '' });
+    if (setGeoStatus) {
+      setGeoStatus({
+        loading: false,
+        source: 'manual',
+        label: `${filters.departamento}${val ? ` / ${val}` : ''}`,
+        detail: 'Preferencia guardada en tu navegador'
+      });
+    }
   };
 
   const handleDistChange = (e) => {
@@ -72,6 +99,7 @@ export default function GeoFilterBar({ filters, setFilters, onFilterChange }) {
       ...prev,
       distrito: val
     }));
+    saveGeoPreference({ departamento: filters.departamento, provincia: filters.provincia, distrito: val });
   };
 
   const handleAlertaChange = (e) => {
@@ -91,6 +119,15 @@ export default function GeoFilterBar({ filters, setFilters, onFilterChange }) {
       sector: '',
       q: ''
     });
+    saveGeoPreference({ departamento: 'CUSCO', provincia: '', distrito: '' });
+    if (setGeoStatus) {
+      setGeoStatus({
+        loading: false,
+        source: 'default',
+        label: 'CUSCO',
+        detail: 'Restablecido a región piloto activa (Cusco)'
+      });
+    }
   };
 
   return (
@@ -106,14 +143,71 @@ export default function GeoFilterBar({ filters, setFilters, onFilterChange }) {
           </p>
         </div>
 
-        <button
-          onClick={handleReset}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors py-1.5 px-3 rounded-lg hover:bg-slate-800 border border-slate-700/60"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Ver todas las obras</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Botón de Geoubicación GPS */}
+          {onGpsDetect && (
+            <button
+              onClick={onGpsDetect}
+              disabled={gpsLoading}
+              title="Obtener tu departamento y provincia exacta mediante GPS del dispositivo (requiere permiso de ubicación)"
+              className="flex items-center gap-1.5 text-xs text-sky-300 hover:text-white bg-sky-950/50 hover:bg-sky-900/70 border border-sky-800/70 transition-all py-1.5 px-3 rounded-lg font-medium cursor-pointer disabled:opacity-50"
+            >
+              {gpsLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-400" />
+              ) : (
+                <Compass className="w-3.5 h-3.5 text-sky-400" />
+              )}
+              <span>{gpsLoading ? 'Obteniendo GPS...' : '📍 Mi ubicación exacta (GPS)'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleReset}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors py-1.5 px-3 rounded-lg hover:bg-slate-800 border border-slate-700/60"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Ver todas las obras</span>
+          </button>
+        </div>
       </div>
+
+      {/* Barra Informativa de Estado de Geolocalización */}
+      {geoStatus && geoStatus.detail && (
+        <div
+          className={`flex items-center justify-between text-xs px-3 py-1.5 rounded-xl mb-3 border transition-all ${
+            geoStatus.source === 'gps'
+              ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60'
+              : geoStatus.source === 'ip'
+              ? 'bg-blue-950/40 text-blue-300 border-blue-800/60'
+              : geoStatus.source === 'ip_unmatched'
+              ? 'bg-amber-950/40 text-amber-300 border-amber-800/60'
+              : geoStatus.source === 'saved'
+              ? 'bg-purple-950/40 text-purple-300 border-purple-800/60'
+              : 'bg-slate-800/40 text-slate-300 border-slate-700/50'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {geoStatus.source === 'gps' && <Navigation className="w-3.5 h-3.5 text-emerald-400" />}
+            {geoStatus.source === 'ip' && <Globe className="w-3.5 h-3.5 text-blue-400" />}
+            {geoStatus.source === 'ip_unmatched' && <Globe className="w-3.5 h-3.5 text-amber-400" />}
+            {geoStatus.source === 'saved' && <BookmarkCheck className="w-3.5 h-3.5 text-purple-400" />}
+            {geoStatus.source === 'manual' && <MapPin className="w-3.5 h-3.5 text-slate-400" />}
+            <span>{geoStatus.detail}</span>
+          </div>
+          {geoStatus.label && (
+            <span className="font-semibold px-2 py-0.5 rounded bg-slate-900/60 text-white text-[11px] border border-white/10 hidden sm:inline">
+              {geoStatus.label}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Alerta si falla GPS */}
+      {gpsError && (
+        <div className="text-xs px-3 py-1.5 rounded-xl mb-3 bg-red-950/40 text-red-300 border border-red-800/60">
+          ⚠️ {gpsError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* 1. DEPARTAMENTO */}

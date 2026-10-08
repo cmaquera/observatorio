@@ -1,7 +1,7 @@
 import React from 'react';
-import { Search, ShieldAlert, MapPin, Building2, Layers, Download, Database, FileSearch } from 'lucide-react';
+import { Search, ShieldAlert, MapPin, Building2, Layers } from 'lucide-react';
 
-export default function Navbar({ activeTab, setActiveTab, searchQuery, setSearchQuery, onSearch, onExport, onOpenStrategy }) {
+export default function Navbar({ activeTab, setActiveTab, searchQuery, setSearchQuery, onSearch }) {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       onSearch();
@@ -94,28 +94,6 @@ export default function Navbar({ activeTab, setActiveTab, searchQuery, setSearch
               <span>Contratistas</span>
             </button>
           </nav>
-
-          {/* Botones de Acción */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onOpenStrategy}
-              title="¿Cómo extraemos y analizamos datos de documentos oficiales protegidos?"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-blue-400 hover:text-blue-300 text-xs font-semibold border border-slate-700 transition-colors"
-            >
-              <FileSearch className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Estrategia de Documentos</span>
-            </button>
-
-            {/* Botón Descargar CSV */}
-            <button
-              onClick={onExport}
-              title="Descargar datos en CSV"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Exportar CSV</span>
-            </button>
-          </div>
 
         </div>
       </div>
