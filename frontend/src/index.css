@@ -20,16 +20,31 @@
 .leaflet-popup-content-wrapper {
   background: #ffffff !important;
   color: #0f172a !important;
-  border-radius: 0.75rem !important;
-  border: 1px solid #cbd5e1 !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 0.85rem !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12) !important;
+}
+
+.leaflet-popup-content {
+  margin: 12px 14px !important;
+  line-height: 1.4 !important;
 }
 
 .leaflet-popup-tip {
   background: #ffffff !important;
 }
 
+.leaflet-container a.leaflet-popup-close-button {
+  color: #64748b !important;
+  padding: 6px !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: #0f172a !important;
+}
+
 /* Leaflet Popup: Modo Oscuro */
+html.dark .leaflet-popup-content-wrapper,
 .dark .leaflet-popup-content-wrapper {
   background: #0f172a !important;
   color: #f8fafc !important;
@@ -37,8 +52,24 @@
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
 }
 
+html.dark .leaflet-popup-tip,
 .dark .leaflet-popup-tip {
   background: #0f172a !important;
+}
+
+html.dark .leaflet-container a.leaflet-popup-close-button,
+.dark .leaflet-container a.leaflet-popup-close-button {
+  color: #94a3b8 !important;
+}
+
+html.dark .leaflet-container a.leaflet-popup-close-button:hover,
+.dark .leaflet-container a.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
+}
+
+/* Filtro dark mode para OpenStreetMap libre (transforma capa libre en mapa oscuro sin costo de API) */
+.dark .leaflet-tile {
+  filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) !important;
 }
 
 /* Scrollbars adaptativos */

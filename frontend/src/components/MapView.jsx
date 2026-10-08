@@ -9,9 +9,19 @@ const formatMoney = (val) => {
   return `S/ ${val.toLocaleString('es-PE')}`;
 };
 
-// Componente para reenfocar el mapa automáticamente cuando cambian los puntos
+// Componente para reenfocar el mapa automáticamente y forzar redibujado de tiles al abrir
 function MapController({ points, center }) {
   const map = useMap();
+
+  useEffect(() => {
+    // Forzar a Leaflet a recalcular dimensiones del contenedor para evitar mapa gris/en blanco
+    map.invalidateSize();
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [map]);
+
   useEffect(() => {
     if (center) {
       map.flyTo(center, 9, { duration: 1.2 });
@@ -52,16 +62,24 @@ export default function MapView({ filters, onSelectProject }) {
   const getColor = (alerta) => {
     switch (alerta) {
       case 'CRITICO':
-        return '#ef4444'; // red-500
+        return '#ef4444'; // Rojo (Crítico)
       case 'ALTO':
-        return '#f97316'; // orange-500
+        return '#f97316'; // Naranja (Alto)
       case 'MEDIO':
-        return '#eab308'; // yellow-500
+        return '#eab308'; // Amarillo (Medio)
       case 'NORMAL':
-        return '#10b981'; // emerald-500
+      case 'BAJO':
+        return '#10b981'; // Verde (Normal / En Cronograma)
+      case 'SIN_DATOS':
       default:
-        return '#64748b'; // slate-500
+        return '#94a3b8'; // Gris (Sin inicio o 0% avance registrado)
     }
+  };
+
+  const getAlertLabel = (alerta) => {
+    if (alerta === 'SIN_DATOS') return 'SIN INICIAR (0%)';
+    if (alerta === 'BAJO') return 'BAJO RIESGO';
+    return alerta || 'NORMAL';
   };
 
   return (
@@ -79,7 +97,7 @@ export default function MapView({ filters, onSelectProject }) {
           </p>
         </div>
 
-        {/* Leyenda de Colores */}
+        {/* Leyenda de Colores Completa */}
         <div className="flex flex-wrap items-center gap-3 text-xs">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-red-500 ring-2 ring-red-500/20"></span>
@@ -95,7 +113,11 @@ export default function MapView({ filters, onSelectProject }) {
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20"></span>
-            <span className="text-slate-600 dark:text-slate-300 font-medium">Normal</span>
+            <span className="text-slate-600 dark:text-slate-300 font-medium">Normal / Bajo</span>
+          </div>
+          <div className="flex items-center gap-1.5" title="Obras registradas que aún tienen 0% de ejecución física y financiera o están en fase de formulación">
+            <span className="w-3 h-3 rounded-full bg-slate-400 ring-2 ring-slate-400/20"></span>
+            <span className="text-slate-600 dark:text-slate-300 font-medium">Sin Datos / 0%</span>
           </div>
         </div>
       </div>
@@ -108,9 +130,11 @@ export default function MapView({ filters, onSelectProject }) {
           scrollWheelZoom={true}
           className="h-full w-full"
         >
+          {/* Capa de Mapas 100% Gratuita y Abierta (OpenStreetMap Standard) */}
           <TileLayer
-            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> colaboradores'
+            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            maxZoom={19}
           />
 
           <MapController points={points} center={points.length > 0 ? [points[0].lat, points[0].lng] : null} />
@@ -141,11 +165,11 @@ export default function MapView({ filters, onSelectProject }) {
                           border: `1px solid ${color}60`
                         }}
                       >
-                        {p.nivel_alerta}
+                        {getAlertLabel(p.nivel_alerta)}
                       </span>
                     </div>
 
-                    <h4 className="font-semibold text-xs text-slate-900 dark:text-white line-clamp-2 mb-2">
+                    <h4 className="font-semibold text-xs text-slate-900 dark:text-white line-clamp-2 mb-2 leading-snug">
                       {p.nombre}
                     </h4>
 
@@ -166,7 +190,7 @@ export default function MapView({ filters, onSelectProject }) {
                           <span>+{p.diferencia_avance} pp</span>
                         </div>
                       )}
-                      <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-200 dark:border-slate-700">
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500 pt-1 border-t border-slate-200 dark:border-slate-700">
                         {p.dpto} · {p.prov} · {p.dist}
                       </div>
                     </div>
