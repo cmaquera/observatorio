@@ -1,93 +1,139 @@
-# Observatorio de Obras Públicas del Perú 🇵🇪
+<p align="center">
+  <img src="frontend/public/favicon.svg" width="96" height="96" alt="Observatorio de Obras Públicas del Perú" />
+</p>
 
-Plataforma integral de auditoría cívica, georreferenciación y transparencia para monitorear, fiscalizar y auditar las inversiones y obras públicas del Estado peruano en tiempo real.
+<h1 align="center">Observatorio de Obras Públicas del Perú</h1>
 
-El valor distintivo del proyecto radica en el **cruce y reconciliación automatizada de fuentes abiertas oficiales**:
+<p align="center">
+  <strong>Plataforma integral de auditoría cívica, georreferenciación y transparencia en tiempo real para fiscalizar las obras públicas del Estado peruano.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/Frontend-React_18-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/Bundler-Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/CSS-Tailwind_v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Mapas-Leaflet-199900?style=for-the-badge&logo=leaflet&logoColor=white" alt="Leaflet" />
+  <img src="https://img.shields.io/badge/Licencia-MIT-red?style=for-the-badge" alt="MIT License" />
+</p>
+
+---
+
+## 🧭 Tabla de Contenidos
+
+1. [Acerca del Proyecto](#-acerca-del-proyecto)
+2. [El Problema y la Solución](#-el-problema-y-la-solución)
+3. [Fuentes Oficiales Reconciliadas](#-fuentes-oficiales-reconciliadas)
+4. [Características Principales](#-características-principales)
+5. [Arquitectura del Sistema](#-arquitectura-del-sistema)
+6. [Estructura del Repositorio](#-estructura-del-repositorio)
+7. [Instalación y Puesta en Marcha](#-instalación-y-puesta-en-marcha)
+8. [Pipeline ETL de Datos](#-pipeline-etl-de-datos)
+9. [Reglas Metodológicas del ISR](#-reglas-metodológicas-del-isr)
+10. [Despliegue en Producción](#-despliegue-en-producción)
+11. [Licencia](#-licencia)
+
+---
+
+## 🇵🇪 Acerca del Proyecto
+
+En el Perú, miles de obras públicas se encuentran paralizadas, retrasadas o con sobrecostos millonarios. Los portales del Estado (MEF, SEACE, Infobras) suelen presentar la información de forma dispersa, con lenguaje técnico complejo y plataformas protegidas por cortafuegos o CAPTCHAs que dificultan la fiscalización ciudadana.
+
+El **Observatorio de Obras Públicas del Perú** es una iniciativa de datos abiertos y auditoría cívica diseñada para:
+* **Traducir** los datos presupuestales, contractuales y de avance físico a un lenguaje claro y comprensible para cualquier ciudadano.
+* **Cruzar y reconciliar** automáticamente las bases de datos de distintas entidades públicas para detectar inconsistencias (por ejemplo, pagos financieros avanzados cuando la construcción real está estancada).
+* **Priorizar el riesgo** mediante un algoritmo objetivo: el **Índice de Severidad de Riesgo (ISR)**.
+* **Geolocalizar** los proyectos para que los usuarios puedan inspeccionar de inmediato las obras de su propio distrito, provincia o departamento.
+
+---
+
+## 🔍 El Problema y la Solución
+
+| El Problema en los Portales Estatales | La Solución del Observatorio |
+| :--- | :--- |
+| **Datos Dispersos**: MEF registra gastos, SEACE contratos e Infobras inspecciones, sin conexión directa entre sí. | **Reconciliación Automática**: Unimos el CUI (Código Único de Inversión) con los contratos SEACE y reportes MEF en una sola ficha unificada. |
+| **Lenguaje Críptico**: Códigos presupuestales, formatos 12-B y términos legales difíciles de entender. | **Diagnóstico Ciudadano**: Semáforos didácticos (*"De cada S/ 100 de presupuesto, se desembolsaron S/ 95 pero la obra va al 12%"*). |
+| **Bloqueos WAF y CAPTCHA**: Las consultas manuales en portales sufren caídas y bloqueos de seguridad. | **Ingesta Streaming de Datos Abiertos**: Carga masiva de volcados mensuales (PNDA y estándar OCDS) y endpoints seguros. |
+| **Falta de Priorización**: Miles de proyectos listados sin saber cuáles presentan mayor riesgo. | **Índice de Severidad de Riesgo (ISR)**: Semáforo de criticidad (Crítico, Alto, Medio, En Cronograma) calibrado de 0 a 100. |
+
+---
+
+## 🏛️ Fuentes Oficiales Reconciliadas
+
+El sistema se alimenta exclusivamente de repositorios abiertos oficiales del Estado peruano:
+
+```mermaid
+flowchart TD
+    subgraph Fuentes["Fuentes Oficiales del Estado Peruano"]
+        A["MEF - Invierte.pe / Banco de Inversiones<br/>(Viabilidades, Formato 07, 08, 09 y 14)"]
+        B["MEF - Formato 12-B & SSI<br/>(Seguimiento físico/financiero y Alertas preventivas)"]
+        C["MEF - Consulta Amigable / SIAF<br/>(PIA, PIM, Devengados y Girados)"]
+        D["OECE / SEACE<br/>(Contratos, Contratistas, Consorcios, Adendas)"]
+        E["Contraloría General - Infobras<br/>(Supervisiones físicas en campo y actas)"]
+    end
+
+    Fuentes --> Pipeline["Pipeline ETL & Motor de Reconciliación"]
+    Pipeline --> DB[("Base de Datos Analítica SQLite (WAL)")]
+    DB --> Backend["FastAPI REST Backend"]
+    Backend --> Frontend["Frontend SPA React + Vite + Leaflet"]
+```
+
 1. **Ministerio de Economía y Finanzas (MEF)**:
-   - **Banco de Inversiones / Invierte.pe**: Viabilidad, costos actualizados, Formato 07, Formato 08, Formato 09 (Cierre) y Formato 14 (Metas por componentes).
-   - **Formato 12-B**: Seguimiento de ejecución física y financiera mensualizado.
-   - **Sistema de Seguimiento de Inversiones (SSI)**: Catálogo oficial de alertas preventivas de riesgo (desfases >20%, omisiones de F12-B, obras paralizadas, riesgo de desactivación).
-   - **Consulta Amigable (SIAF)**: Presupuestos vigentes (PIA, PIM), compromisos, devengados acumulados y saldos.
+   - **Banco de Inversiones (Invierte.pe)**: Viabilidad, costos actualizados y Formato 14 (metas físicas por componentes).
+   - **Formato 12-B**: Seguimiento de ejecución mensual físico y financiero reportado por las Unidades Ejecutoras.
+   - **Sistema de Seguimiento de Inversiones (SSI)**: Catálogo oficial de alertas tempranas de riesgo de obra.
+   - **Consulta Amigable (SIAF)**: Presupuestos vigentes (PIA, PIM) y devengados acumulados.
 2. **OECE / SEACE (Sistema Electrónico de Contrataciones del Estado)**:
-   - Contratos de obras, procesos de selección, bases integradas, contratistas individuales y consorcios (RUCs, integrantes y participaciones).
-   - Cuadernos de obra digitalizados, suspensiones de plazo, arbitrajes y controversias contractuales.
+   - Contratos de obra, montos adjudicados, contratistas individuales y consorcios (RUCs y porcentaje de participación).
 3. **Contraloría General de la República (Infobras)**:
-   - Registro de avances físicos de campo, supervisiones técnicas, estado de recepción de obra e informes de control.
+   - Registro de avances físicos de campo, supervisiones técnicas y estado de obras paralizadas.
 
 ---
 
 ## 🌟 Características Principales
 
-### 1. Dashboard Ejecutivo y Top de Proyectos Críticos
-- **Índice de Severidad de Riesgo (ISR)** calibrado de 0 a 100 puntos para priorizar las intervenciones que requieren mayor fiscalización ciudadana.
-- **KPIs globales consolidados**: Presupuesto total auditado, monto en riesgo financiero, cantidad de proyectos en peligro crítico, obras con plazo vencido y desfase promedio en puntos porcentuales.
-- **Filtros jerárquicos y buscador universal**:
-  - Filtrado encadenado por **Departamento ➔ Provincia ➔ Distrito**.
-  - Buscador predictivo por **Código Único de Inversión (CUI)**, **Nombre del Proyecto**, **RUC** o **Razón Social de la Empresa Contratista**.
+### 1. 🌓 Soporte Completo de Modo Claro y Modo Oscuro (Light & Dark Mode)
+- Conmutador instantáneo (Sol ☀️ / Luna 🌙) con persistencia de preferencia en `localStorage`.
+- Paleta de colores homologada y accesible en todas las vistas: tarjetas ejecutivas, gráficos de inversión, mapas, tablas y modales de inspección.
 
-### 2. Mapa Georreferenciado Interactivo (Leaflet)
-- Geocodificación inteligente con normalización de centroides distritales para evitar coordenadas nulas o en el océano (0,0).
-- Marcadores semafóricos según criticidad:
-  - 🔴 **Crítico** (ISR $\ge 70$ o desfase $>20$ pp con retraso severo)
-  - 🟠 **Alto** (ISR 50–69)
-  - 🟡 **Medio** (ISR 30–49)
-  - 🟢 **Normal / En Cronograma** (ISR $< 30$)
-- Tooltips y popups informativos con apertura instantánea de la ficha técnica.
+### 2. 📍 Detección Inteligente de Ubicación (IP y GPS)
+- **Detección silenciosa por IP**: Al ingresar a la plataforma, el sistema detecta de forma no invasiva la región y provincia del visitante para priorizar y mostrar las obras de su localidad de forma predeterminada.
+- **Geolocalización por GPS**: Botón de alta precisión con cálculo de radio de tolerancia para centrar la auditoría en el punto exacto del usuario.
 
-### 3. Ficha Técnica Integral y Diagnóstico para el Ciudadano
-La ficha técnica traduce el lenguaje técnico-financiero estatal en diagnósticos sencillos:
-- **Semáforo Ciudadano**:
-  1. *Plazo de Entrega*: Estado del calendario contractual y días de demora acumulados.
-  2. *Dinero vs Construcción*: Explicación didáctica (ej. *"De cada S/ 100 de presupuesto, se han desembolsado S/ 98, pero la construcción va al 11%"*).
-  3. *Adendas y Supervisión*: Sobrecostos autorizados por adendas y nombre del supervisor o inspector de obra.
-  4. *Cuaderno de Obra*: Identificación de causales de retraso o confirmación de obras sin causales adversas registradas.
-- **Gráficos comparativos de avance**: Barra de avance físico reportado vs. avance financiero devengado con cálculo exacto de la brecha en puntos porcentuales (pp).
-- **Tarjetas de control presupuestal**: Costo Actualizado, Devengado Acumulado, Saldo por Ejecutar y Plazo de Culminación.
+### 3. 🛡️ Isotipo Oficial de Auditoría Cívica Peruana
+- Emblema vectorial SVG bespoke que integra:
+  - Los colores patrios peruanos (escudo squircle rojo institucional con sutil franja central).
+  - La silueta estructural de obras públicas (edificación, equipamiento y bases).
+  - La **lupa de auditoría ciudadana** con un **check verde esmeralda**, representando la validación activa de la comunidad.
+  - Elimina el bug de Windows que mostraba el emoji de bandera como una letra "P" solitaria.
 
-### 4. Motor de Alertas Oficiales del Sistema de Seguimiento de Inversiones (SSI - MEF)
-Reproducción algorítmica fidedigna del motor de alertas preventivas de riesgo del MEF (`script_ssi01.js` / `#modAlertassi`):
-- **Alerta 1 (CRÍTICO)**: Inconsistencia entre ejecución financiera y física superior al 20%.
-- **Alerta 4 (ALTO)**: Inversión no cuenta con Formato N°12-B actualizado (bandera oficial `[5]`).
-- **Alerta 5 (CRÍTICO)**: Costo actualizado menor al devengado acumulado (sobrecostos / sobregiro).
-- **Alerta 6 (ALTO)**: Inversión con obra paralizada sin acciones de reactivación actualizada (bandera `[7]`).
-- **Alerta 7 (CRÍTICO)**: Contrataciones en estado resuelto o nulo o en arbitraje (controversias SEACE).
-- **Alertas 8, 9, 10**: Incumplimientos de reporte físico, incoherencia de porcentajes y avances físicos congelados por 3 meses o más.
-- **Alerta 11 / Desactivación**: Riesgo de desactivación administrativa en el Banco de Inversiones.
-- **Badge animado en pestaña**: Muestra un pill pulsante (`X alertas SSI`) en el botón *Contratos & Alertas*.
-- **Enlace directo verificado**: Botón *Abrir en SSI Oficial* con acceso inmediato a la ficha oficial del CUI en el MEF.
+### 4. 📊 Dashboard Ejecutivo y Proyectos Críticos
+- Cálculo consolidado de indicadores: Presupuesto Total Auditado, Monto en Riesgo Financiero, Obras Críticas y Desfase Promedio en puntos porcentuales (pp).
+- Carrusel de **Proyectos Críticos Prioritarios** ordenados por severidad.
 
-### 5. Línea de Tiempo Ciudadana y Metas Físicas por Componentes
-- Reconciliación temporal de 6 hitos clave:
-  1. *Viabilidad / Aprobación del Perfil* (Banco de Inversiones).
-  2. *Expediente Técnico / Aprobación Definitiva*.
-  3. *Inicio de Trabajos en Terreno* (verificación de avance $>0\%$).
-  4. *Fecha Prevista de Culminación* (alertas de plazo vencido).
-  5. *Ejecución Física por Componentes y Metas* (infraestructura, equipamiento, supervisión, liquidación con avance real en metrados vía Formato 14).
-  6. *Liquidación y Transferencia* (Formato 09 oficial, entrega de obra al sector o liquidación de corte para obras inconclusas).
-- Adaptado dinámicamente según modalidad de ejecución: **Contrata**, **Administración Directa** o **Mixta/Híbrida**.
+### 5. 🗺️ Mapa Interactivo Georreferenciado (Leaflet)
+- Centroides normalizados de distritos y provincias para evitar coordenadas inválidas o en el océano.
+- Semáforo de marcadores por criticidad (Rojo, Naranja, Amarillo, Verde).
+- Popups informativos optimizados para pantallas táctiles y de escritorio.
 
-### 6. Galería Oficial de Fotos de Obra en Terreno
-- Extracción automatizada de paneles fotográficos de supervisión técnica cargados ante SEACE e Infobras.
-- Visualizador tipo modal con zoom, fecha de periodo de inspección, avance físico certificado y descripción técnica.
+### 6. 📋 Ficha Técnica y Diagnóstico para el Ciudadano
+Cada obra cuenta con un expediente interactivo estructurado en pestañas:
+- **Resumen Ciudadano**: Diagnóstico en 3 bloques (Plazo de entrega, Dinero gastado vs. Construcción real, y Estado de controversias).
+- **Fotos en Terreno**: Galería de fotos oficiales de supervisión técnica extraídas de reportes de campo.
+- **Línea de Tiempo & Metas Físicas**: Reconciliación de hitos históricos (perfil, expediente, inicio, entrega) y avance por componentes (infraestructura, supervisión, equipamiento).
+- **Contratos & Alertas SSI**: Contratos asociados, consorcios adjudicatarios y motor oficial de alertas del MEF.
+- **Documentos & MEF**: Enlaces directos a fichas oficiales de Invierte.pe, SEACE e Infobras sin CAPTCHA.
 
-### 7. Centro de Descargas Oficiales Sin Bloqueos de CAPTCHA
-Generación en tiempo real y descarga directa desde el backend:
-- 📄 **Expediente Oficial de Auditoría**: Ficha completa formateada para impresión o guardado en PDF con código QR y metadatos oficiales.
-- 📊 **Seguimiento Financiero F12-B (MEF)**: CSV estructurado con cronogramas mensuales, devengados y valorizaciones.
-- 📑 **Ficha Contractual y Adjudicación SEACE**: CSV detallado con datos de contratistas, consorciados, montos adjudicados y adendas.
-- 📋 **Ficha de Control y Supervisión Infobras**: CSV con registros de inspección física y recepción.
+### 7. 🏢 Directorio de Contratistas y Consorcios SEACE
+- Récord de contratos ganados, montos totales adjudicados, composición societaria de consorcios y tasa de proyectos con alertas de riesgo.
 
-### 8. Directorio de Contratistas y Consorcios
-- Módulo de fiscalización corporativa con récord de contratos ganados, montos adjudicados, composición societaria de consorcios y tasa de obras en alerta de riesgo.
-
-### 9. Exportación Masiva de Datos
-- Descarga en formato **CSV (UTF-8 con BOM)** del conjunto de obras y filtros aplicados para análisis en Excel, Power BI, R o Python.
+### 8. 📥 Exportación Masiva a CSV
+- Descarga de datasets filtrados con codificación UTF-8 con BOM para apertura inmediata en Microsoft Excel, Power BI o Python.
 
 ---
 
 ## 🏛️ Arquitectura del Sistema
-
-El sistema implementa una arquitectura desacoplada y orientada a rendimiento:
 
 ```
                   ┌─────────────────────────────────────────────────────────┐
@@ -121,10 +167,10 @@ El sistema implementa una arquitectura desacoplada y orientada a rendimiento:
                                               │
                                               ▼
                   ┌─────────────────────────────────────────────────────────┐
-                  │            Frontend SPA (React 18 + Vite + Tailwind)    │
-                  │   - Mapa interactivo Leaflet con clustering semafórico  │
-                  │   - Ficha modal de obra con 5 pestañas de inspección    │
-                  │   - Responsive, dark mode nativo y alta accesibilidad   │
+                  │       Frontend SPA (React 18 + Vite 8 + Tailwind v4)    │
+                  │   - Mapa interactivo Leaflet con semáforo de riesgo     │
+                  │   - Modo Claro y Oscuro conmutables                     │
+                  │   - Geolocalización automática inteligente (IP + GPS)   │
                   └─────────────────────────────────────────────────────────┘
 ```
 
@@ -147,7 +193,7 @@ observatorio/
 │   │   │   └── runner.py            # Script principal de ejecución del pipeline ETL
 │   │   ├── routers/
 │   │   │   ├── dashboard.py         # KPIs globales y rankings de riesgo
-│   │   │   ├── obras.py             # Detalle de obras, línea de tiempo y descargas
+│   │   │   ├── obras.py             # Detalle de obras, línea de tiempo y fotos
 │   │   │   ├── empresas.py          # Estadísticas y contratos por contratista
 │   │   │   ├── geo.py               # Jerarquía de departamentos, provincias y distritos
 │   │   │   └── export.py            # Exportación de datos a CSV
@@ -159,177 +205,193 @@ observatorio/
 │   │   ├── rules.py                 # Algoritmo del Índice de Severidad de Riesgo (ISR)
 │   │   └── main.py                  # Instancia principal de la aplicación FastAPI
 │   ├── data/
-│   │   └── observatorio.db          # Base de datos SQLite analítica inicial
-│   ├── Dockerfile                   # Imagen Docker para el backend FastAPI
+│   │   └── observatorio.db          # Base de datos analítica SQLite pre-poblada
+│   ├── Dockerfile                   # Contenedor Docker para FastAPI
 │   ├── requirements.txt             # Dependencias del backend Python
 │   ├── run_server.py                # Lanzador del servidor Uvicorn
-│   ├── test_api.py                  # Pruebas automatizadas de los endpoints REST
-│   └── test_downloads.py            # Pruebas automatizadas de descarga de documentos
+│   ├── test_api.py                  # Pruebas automatizadas de endpoints
+│   └── test_downloads.py            # Pruebas automatizadas de descarga de reportes
 ├── frontend/
+│   ├── public/
+│   │   └── favicon.svg              # Isotipo vectorial de auditoría cívica
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── DashboardKpis.jsx        # Tarjetas de indicadores clave de riesgo
-│   │   │   ├── FichaObraModal.jsx       # Modal integral con 5 pestañas y alertas SSI
-│   │   │   ├── GaleriaFotosObra.jsx     # Visor de fotos oficiales de supervisión
-│   │   │   ├── LineaTiempoProyecto.jsx  # Reconciliación de hitos y metas físicas
-│   │   │   ├── MapaObras.jsx            # Mapa interactivo Leaflet
-│   │   │   ├── TablaObras.jsx           # Tabla de inversiones con filtros y orden
-│   │   │   ├── TopCriticos.jsx          # Carrusel del Top de obras en mayor riesgo
-│   │   │   ├── FiltrosAvanzados.jsx     # Filtros geográficos y de criticidad
-│   │   │   └── DocumentStrategyModal.jsx# Explicación de descargas directas
+│   │   │   ├── ObservatorioLogo.jsx # Isotipo vectorial SVG institucional
+│   │   │   ├── Navbar.jsx           # Cabecera con buscador y selector de tema
+│   │   │   ├── GeoFilterBar.jsx     # Selector encadenado y geodetección IP/GPS
+│   │   │   ├── MetricCards.jsx      # Tarjetas ejecutivas de KPIs de riesgo
+│   │   │   ├── CriticalProjects.jsx # Lista de obras críticas de alta severidad
+│   │   │   ├── SectorDistribution.jsx # Desglose de inversión por sector estatal
+│   │   │   ├── MapView.jsx          # Mapa Leaflet interactivo con clusters
+│   │   │   ├── AllObrasTable.jsx    # Tabla completa de obras con filtros
+│   │   │   ├── ContratistasTable.jsx# Directorio de contratistas SEACE
+│   │   │   ├── FichaObraModal.jsx   # Modal de expediente técnico y diagnósticos
+│   │   │   ├── GaleriaFotosObra.jsx # Visor de fotos de supervisión en terreno
+│   │   │   ├── LineaTiempoProyecto.jsx # Hitos de vida del proyecto y metas F14
+│   │   │   └── DocumentStrategyModal.jsx # Explicación de acceso a fuentes abiertas
 │   │   ├── services/
-│   │   │   └── api.js               # Cliente HTTP Axios para consumir el backend
-│   │   ├── App.jsx                  # Componente principal de la aplicación
-│   │   ├── index.css                # Estilos globales y utilidades Tailwind
-│   │   └── main.jsx                 # Punto de entrada de React
+│   │   │   ├── api.js               # Cliente Axios y endpoints REST
+│   │   │   └── geoDetector.js       # Motor de geolocalización por IP y GPS
+│   │   ├── App.jsx                  # Componente raíz con estado de tema y vistas
+│   │   ├── index.css                # Configuración de Tailwind CSS v4 y variantes
+│   │   └── main.jsx                 # Entrypoint de React
 │   ├── Dockerfile                   # Multi-stage Dockerfile para React + Nginx
-│   ├── nginx.conf                   # Configuración Nginx de producción y reverse proxy
+│   ├── nginx.conf                   # Configuración Nginx de producción
 │   ├── package.json                 # Dependencias y scripts de Node.js
-│   ├── tailwind.config.js           # Configuración de Tailwind CSS
 │   └── vite.config.js               # Configuración del bundler Vite
 ├── docs/
-│   ├── ARQUITECTURA.md              # Documentación técnica profunda de la arquitectura
-│   ├── DESPLIEGUE_DOKPLOY_CLOUDFLARE.md # Guía paso a paso de Dokploy + Cloudflare
-│   └── REGLAS_AUDITORIA.md          # Manual de reglas de auditoría y cálculo del ISR
-├── docker-compose.yml               # Orquestación de contenedores para Dokploy
-├── start_project.ps1                # Script PowerShell de inicio rápido unificado
-├── .gitignore                       # Configuración de exclusiones de Git
-└── README.md                        # Documentación principal del proyecto
+│   ├── ARQUITECTURA.md              # Documentación técnica en profundidad
+│   ├── DESPLIEGUE_DOKPLOY_CLOUDFLARE.md # Manual de despliegue en servidor propio
+│   └── REGLAS_AUDITORIA.md          # Manual del algoritmo del ISR
+├── docker-compose.yml               # Orquestación de contenedores para producción
+├── start_project.ps1                # Script PowerShell de arranque unificado
+├── LICENSE                          # Licencia MIT
+└── README.md                        # Documentación principal
 ```
 
 ---
 
-## 🚀 Guía de Instalación y Puesta en Marcha
+## 🚀 Instalación y Puesta en Marcha
 
 ### Prerrequisitos
 - **Python 3.10 o superior**
 - **Node.js 18 o superior** y **npm**
 - **Git**
 
-### Opción 1: Inicio Rápido con PowerShell (Windows)
-El proyecto incluye un script automatizado que levanta ambos servidores concurrentemente:
+---
+
+### Opción 1: Inicio Rápido Unificado (PowerShell en Windows)
+El proyecto incluye un script automatizado que valida el entorno y levanta concurrentemente el Backend y el Frontend:
 ```powershell
 .\start_project.ps1
 ```
-* **Frontend**: `http://localhost:5173`
-* **Backend**: `http://127.0.0.1:8000`
+* **Frontend Web**: [http://localhost:5173](http://localhost:5173)
+* **Backend API**: [http://127.0.0.1:8000](http://127.0.0.1:8000)
+* **Documentación Swagger**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ---
 
 ### Opción 2: Inicio Manual Paso a Paso
 
-#### 1. Clonar el Repositorio
+#### 1. Clonar el repositorio
 ```bash
 git clone https://github.com/cmaquera/observatorio.git
 cd observatorio
 ```
 
-#### 2. Configurar y Levantar el Backend (FastAPI)
+#### 2. Iniciar el Backend (FastAPI)
 ```bash
 cd backend
 
-# (Opcional) Crear y activar entorno virtual:
+# (Recomendado) Crear entorno virtual:
 python -m venv .venv
+
+# Activar entorno:
 # En Windows:
 .venv\Scripts\activate
-# En Linux/macOS:
+# En Linux / macOS:
 source .venv/bin/activate
 
-# Instalar dependencias
+# Instalar dependencias:
 pip install -r requirements.txt
 
-# Iniciar servidor
+# Iniciar servidor:
 python run_server.py
 ```
-- API REST disponible en: `http://127.0.0.1:8000`
-- Documentación interactiva Swagger en: `http://127.0.0.1:8000/docs`
-- Documentación ReDoc en: `http://127.0.0.1:8000/redoc`
+> El backend quedará escuchando en `http://127.0.0.1:8000`.
 
-#### 3. Configurar y Levantar el Frontend (React + Vite)
-En una nueva terminal:
+#### 3. Iniciar el Frontend (React + Vite)
+En otra terminal:
 ```bash
 cd frontend
 
-# Instalar dependencias
+# Instalar dependencias:
 npm install
 
-# Iniciar servidor de desarrollo
+# Iniciar servidor de desarrollo:
 npm run dev
 ```
-- Aplicación web accesible en: `http://localhost:5173`
+> Abre tu navegador en `http://localhost:5173`.
 
 ---
 
-### Opción 3: Despliegue en Producción con Dokploy (Ubuntu Local) + Cloudflare
-El repositorio incluye configuración de **Docker Compose** lista para producción en Dokploy:
-1. En Dokploy (servidor Ubuntu), crea un servicio de tipo **Compose** apuntando a este repositorio (`cmaquera/observatorio`).
-2. Configura el túnel de **Cloudflare Tunnel (Zero Trust)** apuntando tu dominio a `http://localhost:3000` (sin necesidad de abrir puertos en tu router).
-3. Consulta el manual paso a paso con capturas y comandos en:  
-   👉 **[Guía de Despliegue en Dokploy y Cloudflare](docs/DESPLIEGUE_DOKPLOY_CLOUDFLARE.md)**.
+## 🔄 Pipeline ETL de Datos
+
+Para actualizar la base de datos o descargar obras de cualquier departamento del Perú:
+
+```bash
+cd backend
+
+# Procesar 500 proyectos del departamento del Cusco:
+python -m app.etl.runner --region CUSCO --limit 500
+
+# Procesar proyectos de Lima Metropolitana:
+python -m app.etl.runner --region LIMA --limit 1000
+
+# Descargar datos a nivel nacional:
+python -m app.etl.runner --region "" --limit 2000
+
+# Carga masiva desatendida de todo el país (sin llamadas en vivo):
+python -m app.etl.runner --region "" --limit 0 --skip-enrich
+```
+
+---
+
+## 📐 Reglas Metodológicas del ISR
+
+El **Índice de Severidad de Riesgo (ISR)** es un modelo de scoring ponderado que clasifica los proyectos de 0 a 100 puntos en base a 5 factores objetivos:
+
+$$\text{ISR} = (D \times 0.35) + (P \times 0.25) + (F \times 0.15) + (M \times 0.15) + (C \times 0.10)$$
+
+| Dimensión | Ponderación | Criterio de Medición |
+| :--- | :---: | :--- |
+| **Desfase Financiero vs. Físico ($D$)** | **35%** | Brecha en puntos porcentuales entre el avance pagado y el avance físico certificado. |
+| **Plazo Vencido ($P$)** | **25%** | Días transcurridos más allá de la fecha contractual prevista de fin de obra. |
+| **Omisión de Formato 12-B ($F$)** | **15%** | Meses consecutivos sin que la Unidad Ejecutora reporte avances en el Banco de Inversiones. |
+| **Magnitud Presupuestal ($M$)** | **15%** | Costo actualizado del proyecto (a mayor presupuesto, mayor impacto social y fiscal). |
+| **Controversias Contractuales ($C$)** | **10%** | Registro de arbitrajes, contratos resueltos o alertas activas en SEACE. |
+
+### Niveles Semafóricos
+* 🔴 **Crítico** ($\text{ISR} \ge 70$): Alta urgencia de intervención y fiscalización.
+* 🟠 **Alto** ($50 \le \text{ISR} < 70$): Riesgo considerable de paralización o sobrecosto.
+* 🟡 **Medio** ($30 \le \text{ISR} < 50$): Desviaciones moderadas que requieren monitoreo.
+* 🟢 **Normal** ($\text{ISR} < 30$): Ejecución en cronograma y avance regular.
+
+---
+
+## 🐳 Despliegue en Producción
+
+El repositorio incluye soporte nativo para despliegue en servidores propios con **Docker Compose**, **Dokploy** y túnel seguro con **Cloudflare Tunnel (Zero Trust)**:
+
+```bash
+docker compose up -d --build
+```
+
+Para una guía paso a paso con configuración de DNS, variables de entorno y túneles sin abrir puertos en el router, consulta:  
+👉 **[Guía de Despliegue en Dokploy y Cloudflare](docs/DESPLIEGUE_DOKPLOY_CLOUDFLARE.md)**
 
 ---
 
 ## 🧪 Pruebas Automatizadas
 
-El proyecto cuenta con suites de verificación automatizadas para asegurar la integridad de los datos y de las descargas:
+Verifica la estabilidad de la API y el frontend con las siguientes suites de prueba:
 
 ```bash
-# Probar endpoints de la API, KPIs, filtros geográficos y contratos:
+# Validar endpoints REST y filtros geográficos:
 python backend/test_api.py
 
-# Probar la generación de fichas PDF/HTML y descargas CSV sin CAPTCHA:
+# Validar generación de reportes y descargas:
 python backend/test_downloads.py
 
-# Validar la compilación de producción del frontend:
+# Validar compilación de producción del frontend:
 cd frontend
 npm run build
 ```
 
 ---
 
-## 🔄 Ejecución y Actualización del Pipeline ETL
-
-Para actualizar la base de datos o descargar datos de cualquier departamento del Perú:
-
-```bash
-cd backend
-
-# Extraer y procesar 500 registros del departamento del Cusco:
-python -m app.etl.runner --region CUSCO --limit 500
-
-# Extraer obras de Lima Metropolitana:
-python -m app.etl.runner --region LIMA --limit 1000
-
-# Extraer a nivel nacional (sin filtro de región):
-python -m app.etl.runner --region "" --limit 2000
-
-# Carga masiva completa de todo el Perú (sin límite y sin llamadas externas en lote):
-python -m app.etl.runner --region "" --limit 0 --skip-enrich
-```
-
-El runner realiza automáticamente:
-1. Conexión streaming con el portal de Datos Abiertos del MEF.
-2. Limpieza de datos numéricos y geográficos.
-3. Normalización con el catálogo nacional de Ubigeos del INEI.
-4. Cálculo del Índice de Severidad de Riesgo (ISR).
-5. Ingesta por lotes ACID optimizada a SQLite (upsert transaccional).
-6. Reconciliación en vivo con SEACE y el Sistema de Seguimiento de Inversiones (SSI) (omitiendo con `--skip-enrich` para cargas masivas desatendidas).
-
----
-
-## 📐 Reglas Metodológicas de Auditoría
-
-El **Índice de Severidad de Riesgo (ISR)** se calcula ponderando 5 dimensiones objetivas:
-1. **Desfase Físico vs. Financiero (35%)**: Brecha en puntos porcentuales entre lo pagado acumulado y el avance físico certificado.
-2. **Plazo Vencido de Obra (25%)**: Días transcurridos desde la fecha de culminación vigente sin entrega formal de la obra.
-3. **Omisión de Reportes en Formato 12-B (15%)**: Meses transcurridos sin actualización de valorizaciones en el Banco de Inversiones del MEF.
-4. **Magnitud Presupuestal (15%)**: Monto del proyecto (mayor asignación de recursos implica mayor impacto ante riesgos).
-5. **Controversias Contractuales y Paralizaciones (10%)**: Existencia de arbitrajes, contratos resueltos o alertas en SEACE.
-
-> **Nota Cívica**: El Observatorio no emite juicios de valor ni reemplaza las auditorías formales de la Contraloría. Presenta y contrasta los datos declarados oficialmente por las entidades ejecutoras para facilitar la supervisión ciudadana.
-
----
-
 ## 📄 Licencia
 
-Este proyecto se distribuye bajo la licencia **MIT**. Para más detalles, consulta el archivo `LICENSE`.
+Este proyecto es de código abierto y se distribuye bajo los términos de la **[Licencia MIT](LICENSE)**.
+
+> **Nota Cívica**: El Observatorio no emite juicios de valor ni reemplaza las auditorías formales de los órganos de control del Estado. Presenta y contrasta los datos declarados oficialmente por las entidades ejecutoras para fortalecer la transparencia y la participación ciudadana en el Perú.
