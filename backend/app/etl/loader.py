@@ -37,8 +37,11 @@ def cargar_lote(db: Session, batch: List[Dict[str, Any]]) -> int:
             if cui in existing_inversiones:
                 inv_obj = existing_inversiones[cui]
                 for key, val in inv_dict.items():
+                    if key in ["enriquecido", "fecha_enriquecimiento"]:
+                        continue
                     setattr(inv_obj, key, val)
             else:
+                inv_dict.setdefault("enriquecido", False)
                 inv_obj = Inversion(**inv_dict)
                 db.add(inv_obj)
                 existing_inversiones[cui] = inv_obj

@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import engine, Base
+from app.database import engine, Base, check_and_apply_migrations
 from app.routers import dashboard, geo, obras, empresas, export
 
-# Crear tablas en base de datos si no existen al arrancar
+# Crear tablas en base de datos si no existen y aplicar migraciones
 Base.metadata.create_all(bind=engine)
+check_and_apply_migrations()
 
 app = FastAPI(
     title="Observatorio de Obras Públicas del Perú 🇵🇪",

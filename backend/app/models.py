@@ -58,6 +58,8 @@ class Inversion(Base):
     sobrecosto_adendas = Column(Float, default=0.0)      # Monto adicional aprobado por adendas (S/)
 
     created_at = Column(DateTime, default=datetime.utcnow)
+    enriquecido = Column(Boolean, default=False, index=True)
+    fecha_enriquecimiento = Column(DateTime, nullable=True)
 
     # Relaciones
     evaluacion_riesgo = relationship("EvaluacionRiesgo", back_populates="inversion", uselist=False, cascade="all, delete-orphan")
@@ -200,6 +202,8 @@ class InversionSimpleOut(BaseModel):
     nro_adendas: Optional[int] = 0
     sobrecosto_adendas: Optional[float] = 0.0
     evaluacion_riesgo: Optional[EvaluacionRiesgoOut] = None
+    enriquecido: Optional[bool] = False
+    fecha_enriquecimiento: Optional[datetime] = None
 
     class Config:
         from_attributes = True
