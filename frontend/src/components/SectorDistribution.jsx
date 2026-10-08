@@ -34,13 +34,13 @@ export default function SectorDistribution({ departamento }) {
   const hasMore = sectores.length > 6;
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl mb-8">
-      <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+    <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm dark:shadow-xl mb-8 transition-colors">
+      <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-800">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <Landmark className="w-4 h-4 text-red-500" />
           <span>Inversión por Sector ({departamento || 'Nacional'})</span>
         </h3>
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-slate-500 dark:text-slate-400">
           {sectores.length} sectores económicos monitoreados
         </span>
       </div>
@@ -52,27 +52,27 @@ export default function SectorDistribution({ departamento }) {
           return (
             <div
               key={s.sector}
-              className="bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 p-3 rounded-xl transition-all"
+              className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 p-3 rounded-xl transition-all"
             >
               <div className="flex items-center justify-between text-xs mb-1.5 gap-2">
-                <span className="font-semibold text-slate-200 truncate" title={s.sector}>
+                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate" title={s.sector}>
                   {s.sector}
                 </span>
-                <span className="font-mono font-bold text-emerald-400 shrink-0">
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
                   {formatMoney(s.monto_total)}
                 </span>
               </div>
 
-              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden mb-1.5">
+              <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-1.5">
                 <div
                   style={{ width: `${pct}%` }}
                   className="h-full bg-gradient-to-r from-red-600 to-rose-500 rounded-full"
                 ></div>
               </div>
 
-              <div className="flex justify-between text-[11px] text-slate-400">
+              <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400">
                 <span>{s.total_obras} obras</span>
-                <span className="text-slate-500">{pct}% del líder</span>
+                <span className="text-slate-400 dark:text-slate-500">{pct}% del líder</span>
               </div>
             </div>
           );
@@ -83,7 +83,7 @@ export default function SectorDistribution({ departamento }) {
         <div className="mt-3 pt-2 text-center">
           <button
             onClick={() => setShowAll(!showAll)}
-            className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium transition-colors cursor-pointer"
           >
             {showAll ? (
               <>

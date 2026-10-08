@@ -131,14 +131,14 @@ export default function GeoFilterBar({
   };
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl mb-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-slate-800/80">
+    <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm dark:shadow-xl mb-6 transition-colors">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-slate-200 dark:border-slate-800/80">
         <div>
-          <div className="flex items-center gap-2 text-sm font-bold text-white">
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
             <MapPin className="w-4 h-4 text-red-500" />
             <span>Ubica las obras de tu barrio, distrito o provincia</span>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Filtra para saber exactamente cómo van los proyectos financiados con dinero público cerca de ti.
           </p>
         </div>
@@ -150,12 +150,12 @@ export default function GeoFilterBar({
               onClick={onGpsDetect}
               disabled={gpsLoading}
               title="Obtener tu departamento y provincia exacta mediante GPS del dispositivo (requiere permiso de ubicación)"
-              className="flex items-center gap-1.5 text-xs text-sky-300 hover:text-white bg-sky-950/50 hover:bg-sky-900/70 border border-sky-800/70 transition-all py-1.5 px-3 rounded-lg font-medium cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs text-sky-700 dark:text-sky-300 hover:text-sky-900 dark:hover:text-white bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 dark:hover:bg-sky-900/70 border border-sky-200 dark:border-sky-800/70 transition-all py-1.5 px-3 rounded-lg font-medium cursor-pointer disabled:opacity-50"
             >
               {gpsLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-400" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600 dark:text-sky-400" />
               ) : (
-                <Compass className="w-3.5 h-3.5 text-sky-400" />
+                <Compass className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
               )}
               <span>{gpsLoading ? 'Obteniendo GPS...' : '📍 Mi ubicación exacta (GPS)'}</span>
             </button>
@@ -163,7 +163,7 @@ export default function GeoFilterBar({
 
           <button
             onClick={handleReset}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors py-1.5 px-3 rounded-lg hover:bg-slate-800 border border-slate-700/60"
+            className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors py-1.5 px-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Ver todas las obras</span>
@@ -171,31 +171,15 @@ export default function GeoFilterBar({
         </div>
       </div>
 
-      {/* Barra Informativa de Estado de Geolocalización */}
-      {geoStatus && geoStatus.detail && (
-        <div
-          className={`flex items-center justify-between text-xs px-3 py-1.5 rounded-xl mb-3 border transition-all ${
-            geoStatus.source === 'gps'
-              ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60'
-              : geoStatus.source === 'ip'
-              ? 'bg-blue-950/40 text-blue-300 border-blue-800/60'
-              : geoStatus.source === 'ip_unmatched'
-              ? 'bg-amber-950/40 text-amber-300 border-amber-800/60'
-              : geoStatus.source === 'saved'
-              ? 'bg-purple-950/40 text-purple-300 border-purple-800/60'
-              : 'bg-slate-800/40 text-slate-300 border-slate-700/50'
-          }`}
-        >
+      {/* Confirmación ÚNICAMENTE cuando el usuario activa GPS voluntariamente (sin aviso de IP) */}
+      {geoStatus && geoStatus.source === 'gps' && geoStatus.detail && (
+        <div className="flex items-center justify-between text-xs px-3 py-1.5 rounded-xl mb-3 border bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60 transition-all">
           <div className="flex items-center gap-2">
-            {geoStatus.source === 'gps' && <Navigation className="w-3.5 h-3.5 text-emerald-400" />}
-            {geoStatus.source === 'ip' && <Globe className="w-3.5 h-3.5 text-blue-400" />}
-            {geoStatus.source === 'ip_unmatched' && <Globe className="w-3.5 h-3.5 text-amber-400" />}
-            {geoStatus.source === 'saved' && <BookmarkCheck className="w-3.5 h-3.5 text-purple-400" />}
-            {geoStatus.source === 'manual' && <MapPin className="w-3.5 h-3.5 text-slate-400" />}
+            <Navigation className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>{geoStatus.detail}</span>
           </div>
           {geoStatus.label && (
-            <span className="font-semibold px-2 py-0.5 rounded bg-slate-900/60 text-white text-[11px] border border-white/10 hidden sm:inline">
+            <span className="font-semibold px-2 py-0.5 rounded bg-emerald-100 dark:bg-slate-900/60 text-emerald-900 dark:text-white text-[11px] border border-emerald-300 dark:border-white/10">
               {geoStatus.label}
             </span>
           )}
@@ -204,7 +188,7 @@ export default function GeoFilterBar({
 
       {/* Alerta si falla GPS */}
       {gpsError && (
-        <div className="text-xs px-3 py-1.5 rounded-xl mb-3 bg-red-950/40 text-red-300 border border-red-800/60">
+        <div className="text-xs px-3 py-1.5 rounded-xl mb-3 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/60">
           ⚠️ {gpsError}
         </div>
       )}
@@ -212,13 +196,13 @@ export default function GeoFilterBar({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* 1. DEPARTAMENTO */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             1. Departamento / Región
           </label>
           <select
             value={filters.departamento || ''}
             onChange={handleDptoChange}
-            className="w-full bg-slate-800/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all cursor-pointer"
+            className="w-full bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all cursor-pointer"
           >
             <option value="">Todo el Perú</option>
             {departamentos.map((d) => (
@@ -231,14 +215,14 @@ export default function GeoFilterBar({
 
         {/* 2. PROVINCIA */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1">
-            2. Provincia {loadingProvs && <span className="text-red-400 font-normal">(buscando...)</span>}
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            2. Provincia {loadingProvs && <span className="text-red-600 dark:text-red-400 font-normal">(buscando...)</span>}
           </label>
           <select
             value={filters.provincia || ''}
             onChange={handleProvChange}
             disabled={!filters.departamento || provincias.length === 0}
-            className="w-full bg-slate-800/90 border border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all cursor-pointer"
+            className="w-full bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all cursor-pointer"
           >
             <option value="">Todas las provincias</option>
             {provincias.map((p) => (
@@ -251,14 +235,14 @@ export default function GeoFilterBar({
 
         {/* 3. DISTRITO */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1">
-            3. Distrito {loadingDists && <span className="text-red-400 font-normal">(buscando...)</span>}
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            3. Distrito {loadingDists && <span className="text-red-600 dark:text-red-400 font-normal">(buscando...)</span>}
           </label>
           <select
             value={filters.distrito || ''}
             onChange={handleDistChange}
             disabled={!filters.provincia || distritos.length === 0}
-            className="w-full bg-slate-800/90 border border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all cursor-pointer"
+            className="w-full bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all cursor-pointer"
           >
             <option value="">Todos los distritos</option>
             {distritos.map((d) => (
@@ -271,14 +255,14 @@ export default function GeoFilterBar({
 
         {/* 4. ¿CÓMO VA LA OBRA? (ESTADO SEMÁFORO) */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
             <span>4. ¿Cómo va la obra? (Semáforo)</span>
           </label>
           <select
             value={filters.nivel_alerta || 'TODAS'}
             onChange={handleAlertaChange}
-            className="w-full bg-slate-800/90 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all cursor-pointer"
+            className="w-full bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all cursor-pointer"
           >
             <option value="TODAS">Ver todas las obras</option>
             <option value="CRITICO">🔴 Obras en peligro (muy atrasadas o con pagos excesivos)</option>
@@ -291,3 +275,4 @@ export default function GeoFilterBar({
     </div>
   );
 }
+

@@ -9,6 +9,7 @@ import ContratistasTable from './components/ContratistasTable';
 import SectorDistribution from './components/SectorDistribution';
 import FichaObraModal from './components/FichaObraModal';
 import DocumentStrategyModal from './components/DocumentStrategyModal';
+import ObservatorioLogo from './components/ObservatorioLogo';
 import { getKpis, getCriticos, getExportCsvUrl, getDepartamentos, getProvincias } from './services/api';
 import {
   detectLocationByIp,
@@ -24,6 +25,31 @@ export default function App() {
   const [selectedCui, setSelectedCui] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showStrategyModal, setShowStrategyModal] = useState(false);
+
+  // Manejador del Tema Claro / Oscuro con persistencia
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('observatorio_theme');
+      if (savedTheme) return savedTheme;
+      return 'dark';
+    }
+    return 'dark';
+  });
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    try {
+      localStorage.setItem('observatorio_theme', theme);
+    } catch (e) {}
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Filtros globales
   const [filters, setFilters] = useState({
@@ -259,7 +285,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-red-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col selection:bg-red-500 selection:text-white transition-colors duration-200">
       
       {/* 1. Barra de Navegación */}
       <Navbar
@@ -268,6 +294,8 @@ export default function App() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onSearch={handleNavbarSearch}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* 2. Contenido Principal */}
@@ -285,15 +313,15 @@ export default function App() {
         />
 
         {/* Indicador de Conciliación Oficial en Línea */}
-        <div className="flex items-center justify-between bg-slate-900/50 border border-slate-800/80 rounded-xl px-3.5 py-1.5 mb-5 text-xs text-slate-400">
+        <div className="flex items-center justify-between bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3.5 py-1.5 mb-5 text-xs text-slate-600 dark:text-slate-400 shadow-sm dark:shadow-none transition-colors">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span>Auditoría en vivo: cruce automático de datos con <strong>MEF SSI</strong>, <strong>Formato 12-B</strong> y <strong>SEACE</strong></span>
+            <span>Auditoría en vivo: cruce automático de datos con <strong className="text-slate-800 dark:text-slate-200">MEF SSI</strong>, <strong className="text-slate-800 dark:text-slate-200">Formato 12-B</strong> y <strong className="text-slate-800 dark:text-slate-200">SEACE</strong></span>
           </div>
-          <span className="text-[11px] text-slate-500 hidden sm:inline">Reconciliación de avance físico real activa</span>
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline">Reconciliación de avance físico real activa</span>
         </div>
 
         {/* Tarjetas Ejecutivas de Métricas (KPIs) */}
@@ -358,24 +386,25 @@ export default function App() {
       />
 
       {/* 5. Pie de Página y Metodología */}
-      <footer className="border-t border-slate-800 bg-slate-950/80 py-8 text-xs text-slate-400">
+      <footer className="border-t border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 py-8 text-xs text-slate-600 dark:text-slate-400 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 font-bold text-white mb-1">
-              <span>🇵🇪 Observatorio de Obras Públicas del Perú</span>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-red-950 text-red-400 border border-red-800">
+            <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-1">
+              <ObservatorioLogo size={20} />
+              <span>Observatorio de Obras Públicas del Perú</span>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800">
                 Iniciativa Cívica Abierta
               </span>
             </div>
-            <p className="text-slate-400">
+            <p className="text-slate-500 dark:text-slate-400">
               Cruce de datos públicos: MEF (Banco de Inversiones / F12B / SIAF), OECE (Contrataciones SEACE) y Contraloría General de la República (Infobras).
             </p>
           </div>
 
-          <div className="flex items-center gap-4 text-xs text-slate-400">
+          <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
             <button
               onClick={() => setShowStrategyModal(true)}
-              className="hover:text-blue-400 text-blue-400/90 font-medium transition-colors flex items-center gap-1 cursor-pointer"
+              className="hover:text-blue-600 dark:hover:text-blue-400 text-blue-600 dark:text-blue-400 font-medium transition-colors flex items-center gap-1 cursor-pointer"
             >
               <FileSearch className="w-3.5 h-3.5" />
               <span>Estrategia de Documentos</span>
@@ -385,7 +414,7 @@ export default function App() {
               href="https://datosabiertos.mef.gob.pe"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-red-400 transition-colors flex items-center gap-1"
+              className="hover:text-red-600 dark:hover:text-red-400 transition-colors flex items-center gap-1"
             >
               <Database className="w-3.5 h-3.5" />
               <span>Datos Abiertos MEF</span>
@@ -395,7 +424,7 @@ export default function App() {
               href="https://contratacionesabiertas.gob.pe"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-red-400 transition-colors"
+              className="hover:text-red-600 dark:hover:text-red-400 transition-colors"
             >
               SEACE / OECE
             </a>
@@ -404,7 +433,7 @@ export default function App() {
               href="https://infobras.gob.pe"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-red-400 transition-colors"
+              className="hover:text-red-600 dark:hover:text-red-400 transition-colors"
             >
               Infobras
             </a>

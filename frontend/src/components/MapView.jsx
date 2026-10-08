@@ -65,16 +65,16 @@ export default function MapView({ filters, onSelectProject }) {
   };
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl mb-8 relative">
+    <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm dark:shadow-xl mb-8 relative transition-colors">
       
       {/* Barra de cabecera del mapa */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
+          <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <MapPin className="w-4 h-4 text-red-500" />
             <span>Mapa Georreferenciado de Inversiones</span>
           </h3>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             {loading ? 'Cargando coordenadas...' : `Visualizando ${points.length} obras georreferenciadas`}
           </p>
         </div>
@@ -83,25 +83,25 @@ export default function MapView({ filters, onSelectProject }) {
         <div className="flex flex-wrap items-center gap-3 text-xs">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-red-500 ring-2 ring-red-500/20"></span>
-            <span className="text-slate-300">Crítico</span>
+            <span className="text-slate-600 dark:text-slate-300 font-medium">Crítico</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-orange-500 ring-2 ring-orange-500/20"></span>
-            <span className="text-slate-300">Alto</span>
+            <span className="text-slate-600 dark:text-slate-300 font-medium">Alto</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-yellow-500 ring-2 ring-yellow-500/20"></span>
-            <span className="text-slate-300">Medio</span>
+            <span className="text-slate-600 dark:text-slate-300 font-medium">Medio</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20"></span>
-            <span className="text-slate-300">Normal</span>
+            <span className="text-slate-600 dark:text-slate-300 font-medium">Normal</span>
           </div>
         </div>
       </div>
 
       {/* Contenedor Leaflet */}
-      <div className="h-[520px] w-full rounded-xl overflow-hidden border border-slate-800 relative">
+      <div className="h-[520px] w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 relative">
         <MapContainer
           center={defaultCenter}
           zoom={9}
@@ -125,14 +125,14 @@ export default function MapView({ filters, onSelectProject }) {
                 pathOptions={{
                   color: color,
                   fillColor: color,
-                  fillOpacity: 0.8,
+                  fillOpacity: 0.85,
                   weight: 2
                 }}
               >
                 <Popup>
-                  <div className="p-1 max-w-xs text-slate-100">
+                  <div className="p-1 max-w-xs text-slate-800 dark:text-slate-100">
                     <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="font-mono text-xs font-bold text-red-400">CUI {p.cui}</span>
+                      <span className="font-mono text-xs font-bold text-red-600 dark:text-red-400">CUI {p.cui}</span>
                       <span
                         className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase"
                         style={{
@@ -145,35 +145,35 @@ export default function MapView({ filters, onSelectProject }) {
                       </span>
                     </div>
 
-                    <h4 className="font-semibold text-xs text-white line-clamp-2 mb-2">
+                    <h4 className="font-semibold text-xs text-slate-900 dark:text-white line-clamp-2 mb-2">
                       {p.nombre}
                     </h4>
 
-                    <div className="text-[11px] text-slate-300 space-y-1 mb-3">
+                    <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 mb-3">
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Presupuesto:</span>
-                        <span className="font-bold text-white">{formatMoney(p.costo)}</span>
+                        <span className="text-slate-500 dark:text-slate-400">Presupuesto:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{formatMoney(p.costo)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Físico vs Financiero:</span>
-                        <span className="font-medium text-emerald-400">
-                          {p.avance_fisico}% <span className="text-slate-400">/</span> <span className="text-blue-400">{p.avance_financiero}%</span>
+                        <span className="text-slate-500 dark:text-slate-400">Físico vs Financiero:</span>
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                          {p.avance_fisico}% <span className="text-slate-400">/</span> <span className="text-blue-600 dark:text-blue-400">{p.avance_financiero}%</span>
                         </span>
                       </div>
                       {p.diferencia_avance > 0 && (
-                        <div className="flex justify-between text-red-400 font-semibold">
+                        <div className="flex justify-between text-red-600 dark:text-red-400 font-semibold">
                           <span>Desfase:</span>
                           <span>+{p.diferencia_avance} pp</span>
                         </div>
                       )}
-                      <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-700">
+                      <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-200 dark:border-slate-700">
                         {p.dpto} · {p.prov} · {p.dist}
                       </div>
                     </div>
 
                     <button
                       onClick={() => onSelectProject(p.cui)}
-                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold shadow-md transition-colors"
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold shadow-md transition-colors cursor-pointer"
                     >
                       <span>Ver Ficha & Contratos</span>
                       <ArrowUpRight className="w-3.5 h-3.5" />
