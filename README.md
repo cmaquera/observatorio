@@ -2,20 +2,27 @@
   <img src="frontend/public/favicon.svg" width="96" height="96" alt="Observatorio de Obras Públicas del Perú" />
 </p>
 
-<h1 align="center">Observatorio de Obras Públicas del Perú</h1>
+<h1 align="center">Observatorio de Obras Públicas del Perú 🇵🇪</h1>
 
 <p align="center">
   <strong>Plataforma integral de auditoría cívica, georreferenciación y transparencia en tiempo real para fiscalizar las obras públicas del Estado peruano.</strong>
 </p>
 
 <p align="center">
+  <a href="https://observatorio.cmaquera.com/" target="_blank">
+    <img src="https://img.shields.io/badge/🌐_Sitio_Oficial_en_Vivo-observatorio.cmaquera.com-059669?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Sitio Oficial en Vivo" />
+  </a>
   <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/Frontend-React_18-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
   <img src="https://img.shields.io/badge/Bundler-Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
   <img src="https://img.shields.io/badge/CSS-Tailwind_v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
-  <img src="https://img.shields.io/badge/Mapas-Leaflet-199900?style=for-the-badge&logo=leaflet&logoColor=white" alt="Leaflet" />
+  <img src="https://img.shields.io/badge/Mapas-OpenStreetMap-199900?style=for-the-badge&logo=openstreetmap&logoColor=white" alt="OpenStreetMap" />
   <img src="https://img.shields.io/badge/Licencia-MIT-red?style=for-the-badge" alt="MIT License" />
+</p>
+
+<p align="center">
+  🚀 <strong>Acceso a la plataforma activa:</strong> <a href="https://observatorio.cmaquera.com/" target="_blank"><strong>https://observatorio.cmaquera.com/</strong></a>
 </p>
 
 ---
@@ -95,7 +102,7 @@ flowchart TD
 
 ### 1. 🌓 Soporte Completo de Modo Claro y Modo Oscuro (Light & Dark Mode)
 - Conmutador instantáneo (Sol ☀️ / Luna 🌙) con persistencia de preferencia en `localStorage`.
-- Paleta de colores homologada y accesible en todas las vistas: tarjetas ejecutivas, gráficos de inversión, mapas, tablas y modales de inspección.
+- Paleta de colores homologada y accesible en todas las vistas: tarjetas ejecutivas, gráficos de inversión, mapas, tablas, visores fotográficos y modales de inspección técnica.
 
 ### 2. 📍 Detección Inteligente de Ubicación (IP y GPS)
 - **Detección silenciosa por IP**: Al ingresar a la plataforma, el sistema detecta de forma no invasiva la región y provincia del visitante para priorizar y mostrar las obras de su localidad de forma predeterminada.
@@ -106,22 +113,27 @@ flowchart TD
   - Los colores patrios peruanos (escudo squircle rojo institucional con sutil franja central).
   - La silueta estructural de obras públicas (edificación, equipamiento y bases).
   - La **lupa de auditoría ciudadana** con un **check verde esmeralda**, representando la validación activa de la comunidad.
-  - Elimina el bug de Windows que mostraba el emoji de bandera como una letra "P" solitaria.
+  - Elimina el bug de visualización en navegadores Windows que mostraban el emoji de bandera peruana como una letra "P" solitaria.
 
 ### 4. 📊 Dashboard Ejecutivo y Proyectos Críticos
 - Cálculo consolidado de indicadores: Presupuesto Total Auditado, Monto en Riesgo Financiero, Obras Críticas y Desfase Promedio en puntos porcentuales (pp).
 - Carrusel de **Proyectos Críticos Prioritarios** ordenados por severidad.
 
-### 5. 🗺️ Mapa Interactivo Georreferenciado (Leaflet)
-- Centroides normalizados de distritos y provincias para evitar coordenadas inválidas o en el océano.
-- Semáforo de marcadores por criticidad (Rojo, Naranja, Amarillo, Verde).
-- Popups informativos optimizados para pantallas táctiles y de escritorio.
+### 5. 🗺️ Mapa Interactivo Georreferenciado (Leaflet + OpenStreetMap Gratuito)
+- **Basemap 100% Abierto y Gratuito**: Integrado con los servidores oficiales de OpenStreetMap (OSM), eliminando dependencias de APIs de pago o cuotas de terceros (como Carto o Mapbox), con filtros de alto rendimiento para el Modo Oscuro.
+- **Recalibración Automática de Lienzo**: Auto-invalidación de tamaño (`invalidateSize`) que garantiza renderizado inmediato y sin mosaicos grises al cambiar de pestaña.
+- **Semáforo y Leyenda Integral de 5 Niveles**:
+  - 🔴 **Crítico** ($\text{ISR} \ge 70$): Alta urgencia de intervención y fiscalización.
+  - 🟠 **Alto** ($50 \le \text{ISR} < 70$): Riesgo considerable de paralización o sobrecosto.
+  - 🟡 **Medio** ($30 \le \text{ISR} < 50$): Desviaciones moderadas bajo monitoreo.
+  - 🟢 **Normal** ($\text{ISR} < 30$): Ejecución en cronograma y avance regular.
+  - ⚪ **Sin Datos / 0%** (Gris): Proyectos en fase preliminar, actos preparatorios de licitación o que aún no registran devengado físico-financiero en el Banco de Inversiones.
 
 ### 6. 📋 Ficha Técnica y Diagnóstico para el Ciudadano
 Cada obra cuenta con un expediente interactivo estructurado en pestañas:
-- **Resumen Ciudadano**: Diagnóstico en 3 bloques (Plazo de entrega, Dinero gastado vs. Construcción real, y Estado de controversias).
-- **Fotos en Terreno**: Galería de fotos oficiales de supervisión técnica extraídas de reportes de campo.
-- **Línea de Tiempo & Metas Físicas**: Reconciliación de hitos históricos (perfil, expediente, inicio, entrega) y avance por componentes (infraestructura, supervisión, equipamiento).
+- **Resumen Ciudadano**: Diagnóstico en 3 bloques didácticos (Plazo de entrega, Dinero gastado vs. Construcción real, y Estado de controversias).
+- **Fotos en Terreno**: Galería de fotos oficiales de supervisión técnica extraídas de reportes de campo (imágenes directas y paneles fotográficos en PDF con visor integrado, badges por periodo y avance físico, y avisos de estado claro cuando una obra no dispone de fotos digitales cargadas).
+- **Línea de Tiempo & Metas Físicas**: Reconciliación de hitos históricos (perfil, expediente, inicio, entrega) y avance por componentes (infraestructura, supervisión, equipamiento del Formato 14).
 - **Contratos & Alertas SSI**: Contratos asociados, consorcios adjudicatarios y motor oficial de alertas del MEF.
 - **Documentos & MEF**: Enlaces directos a fichas oficiales de Invierte.pe, SEACE e Infobras sin CAPTCHA.
 
@@ -361,7 +373,10 @@ $$\text{ISR} = (D \times 0.35) + (P \times 0.25) + (F \times 0.15) + (M \times 0
 
 ## 🐳 Despliegue en Producción
 
-El repositorio incluye soporte nativo para despliegue en servidores propios con **Docker Compose**, **Dokploy** y túnel seguro con **Cloudflare Tunnel (Zero Trust)**:
+El proyecto se encuentra **desplegado y disponible públicamente** en:
+👉 **[https://observatorio.cmaquera.com/](https://observatorio.cmaquera.com/)**
+
+Para desplegar tu propia instancia, el repositorio incluye soporte nativo para despliegue en servidores propios con **Docker Compose**, **Dokploy** y túnel seguro con **Cloudflare Tunnel (Zero Trust)**:
 
 ```bash
 docker compose up -d --build

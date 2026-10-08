@@ -81,14 +81,14 @@ Cloudflare te mostrará comandos listos para ejecutar según tu sistema operativ
 
 #### Paso 3.3: Configurar el Nombre de Dominio Público
 En la pestaña **Public Hostnames**:
-1. **Subdomain**: El subdominio que quieras (ejemplo: `observatorio` o déjalo vacío si usarás el dominio raíz).
-2. **Domain**: Selecciona tu dominio registrado en Cloudflare (ejemplo: `tudominio.com`).
+1. **Subdomain**: `observatorio` (o el subdominio de tu preferencia).
+2. **Domain**: `cmaquera.com` (o tu dominio registrado en Cloudflare).
 3. **Service**:
    * **Type**: `HTTP`
    * **URL**: `localhost:3080` (o la IP local de tu Ubuntu: `http://192.168.1.XX:3080`).
 4. Haz clic en **Save Tunnel**.
 
-¡Listo! A partir de este momento, cualquier petición a `https://observatorio.tudominio.com` llegará de forma directa, cifrada y protegida por Cloudflare a tu servidor local.
+¡Listo! A partir de este momento, cualquier petición a `https://observatorio.cmaquera.com` llegará de forma directa, cifrada y protegida por Cloudflare a tu servidor local.
 
 ---
 
@@ -123,7 +123,7 @@ Una vez que tengas tu servidor Ubuntu con Dokploy corriendo (usualmente en `http
 
 ### Paso 4.5: Probar el Acceso
 * En tu red local: Accede a `http://<IP_UBUNTU>:3080` y verás la aplicación cargando de inmediato.
-* En internet: Ingresa a `https://observatorio.tudominio.com` y verás tu plataforma funcionando con certificado SSL seguro de Cloudflare.
+* En internet: Ingresa a `https://observatorio.cmaquera.com` y verás tu plataforma funcionando con certificado SSL seguro de Cloudflare.
 
 ---
 
