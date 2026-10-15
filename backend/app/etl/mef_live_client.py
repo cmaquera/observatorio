@@ -78,6 +78,7 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
         "url_informe_cierre": None,
         "url_contrataciones_seace": f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepContratac?codigo={cui}",
         "url_linea_seguimiento": f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepLinSeguim?codigo={cui}",
+        "url_geoinvierte": f"https://ofi5.mef.gob.pe/geoinvierteportals/index.html?query=cartografia_pip_georef_edicion_lectura_7101,COD_UNICO,{cui}",
     }
 
     result: Dict[str, Any] = {
@@ -104,7 +105,8 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
         "ultimo_estado_situacional_f12b": None,
         "historial_situacion": [],
         "fotos_obra": [],
-        "alertas_ssi_mef": []
+        "alertas_ssi_mef": [],
+        "ubicacion_oficial": None
     }
 
     try:
@@ -215,6 +217,12 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
         )
         result["alertas_ssi_mef"] = alertas_ssi
 
+        # Consulta 6: Ubicación geográfica oficial en GeoInvierte / ArcGIS MEF
+        geo_info = fetch_geoinvierte_coords(cui)
+        if geo_info:
+            result["disponible"] = True
+            result["ubicacion_oficial"] = geo_info
+
     except Exception:
         # Fallback silencioso y seguro
         pass
@@ -313,6 +321,43 @@ def _fetch_det_inv_ssi(cui: str) -> Optional[Dict[str, Any]]:
                 body = json.loads(resp.read().decode("utf-8"))
                 if body and isinstance(body, list) and len(body) > 0:
                     return body[0]
+        except Exception:
+            continue
+    return None
+
+
+def fetch_geoinvierte_coords(cui: str) -> Optional[Dict[str, Any]]:
+    """
+    Consulta el servidor oficial ArcGIS del MEF / MINECON (GeoInvierte):
+    cartografia_pip_georef_edicion_lectura para obtener las coordenadas exactas
+    georreferenciadas durante la Fase de Formulación y Evaluación.
+    """
+    cui_str = str(cui).strip()
+    base_url = "https://ws.mineco.gob.pe/server/rest/services/cartografia_pip_georef_edicion_lectura/MapServer"
+    for layer in [0, 1, 2]:
+        url = f"{base_url}/{layer}/query?where=COD_UNICO%3D{cui_str}&outFields=X,Y,NOMBRE_LOC,DEPARTAMEN,PROVINCIA,DISTRITO&returnGeometry=true&f=json"
+        req = urllib.request.Request(url, headers=_COMMON_HEADERS)
+        try:
+            with urllib.request.urlopen(req, timeout=6.0, context=_SSL_CTX) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                features = data.get("features", [])
+                if features:
+                    feat = features[0]
+                    attrs = feat.get("attributes", {})
+                    geom = feat.get("geometry", {})
+                    x = attrs.get("X") if attrs.get("X") is not None else geom.get("x")
+                    y = attrs.get("Y") if attrs.get("Y") is not None else geom.get("y")
+                    if x is not None and y is not None:
+                        return {
+                            "latitud": float(y),
+                            "longitud": float(x),
+                            "localidad": attrs.get("NOMBRE_LOC"),
+                            "departamento": attrs.get("DEPARTAMEN"),
+                            "provincia": attrs.get("PROVINCIA"),
+                            "distrito": attrs.get("DISTRITO"),
+                            "url_geoinvierte": f"https://ofi5.mef.gob.pe/geoinvierteportals/index.html?query=cartografia_pip_georef_edicion_lectura_7101,COD_UNICO,{cui_str}",
+                            "fuente": "GeoInvierte MEF (Cartografía PIP)"
+                        }
         except Exception:
             continue
     return None

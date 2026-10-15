@@ -78,7 +78,7 @@ def transformar_registro(raw: Dict[str, str]) -> Dict[str, Any]:
 
     lat_raw = raw.get("LATITUD")
     lon_raw = raw.get("LONGITUD")
-    lat, lon = resolver_coordenadas(lat_raw, lon_raw, dpto, prov, dist)
+    lat, lon = resolver_coordenadas(lat_raw, lon_raw, dpto, prov, dist, ubigeo=ubigeo)
 
     estado = raw.get("ESTADO", "ACTIVO").strip().strip('"').upper()
 
