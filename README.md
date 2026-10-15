@@ -119,15 +119,13 @@ flowchart TD
 - Cálculo consolidado de indicadores: Presupuesto Total Auditado, Monto en Riesgo Financiero, Obras Críticas y Desfase Promedio en puntos porcentuales (pp).
 - Carrusel de **Proyectos Críticos Prioritarios** ordenados por severidad.
 
-### 5. 🗺️ Mapa Interactivo Georreferenciado (Leaflet + OpenStreetMap Gratuito)
-- **Basemap 100% Abierto y Gratuito**: Integrado con los servidores oficiales de OpenStreetMap (OSM), eliminando dependencias de APIs de pago o cuotas de terceros (como Carto o Mapbox), con filtros de alto rendimiento para el Modo Oscuro.
-- **Recalibración Automática de Lienzo**: Auto-invalidación de tamaño (`invalidateSize`) que garantiza renderizado inmediato y sin mosaicos grises al cambiar de pestaña.
-- **Semáforo y Leyenda Integral de 5 Niveles**:
-  - 🔴 **Crítico** ($\text{ISR} \ge 70$): Alta urgencia de intervención y fiscalización.
-  - 🟠 **Alto** ($50 \le \text{ISR} < 70$): Riesgo considerable de paralización o sobrecosto.
-  - 🟡 **Medio** ($30 \le \text{ISR} < 50$): Desviaciones moderadas bajo monitoreo.
-  - 🟢 **Normal** ($\text{ISR} < 30$): Ejecución en cronograma y avance regular.
-  - ⚪ **Sin Datos / 0%** (Gris): Proyectos en fase preliminar, actos preparatorios de licitación o que aún no registran devengado físico-financiero en el Banco de Inversiones.
+### 5. 🛰️ Centro de Monitoreo Táctico (C4 HUD)
+- **Inspección Geoespacial Centralizada**: Vista táctica integral sobre OpenStreetMap con encuadre automático (`flyToBounds`) según el ámbito territorial filtrado (departamento, provincia o distrito).
+- **Despliegue en Abanico (Spiderfy)**: Detección geométrica reactiva para obras coincidentes en las mismas coordenadas geográficas, permitiendo alternar y auditar cada CUI individualmente sin superposición visual.
+- **Ficha Táctica Flotante con Apertura a Demanda**: Panel de inspección detallado que se activa únicamente por selección manual (clic en marcador, obra o alerta), permitiendo examinar desfases físicos vs. financieros, diagnóstico del MEF y auditoría directa.
+- **Paleta No Semafórica para Sectores**: Esquema cromático diferenciado para sectores económicos (Vial, Salud, Agua, Educación, Otros) independiente del semáforo de criticidad (Crítico, Observadas, En Plazo) para prevenir sesgos de interpretación.
+- **Persistencia Síncrona de Filtros (LocalStorage + URL State)**: Sincronización transparente de la ubicación en la URL (`?departamento=...&provincia=...&distrito=...`) y en almacenamiento local, garantizando que al recargar la página (F5) se preserve de inmediato el filtro territorial sin reiniciar a la región completa.
+- **Alineación Dinámica y Scroll Interno**: Contención reactiva basada en `ResizeObserver` para acoplar la altura de las tres columnas a la matriz de *Desfase de Cronograma*, eliminando espacios en blanco inferiores.
 
 ### 6. 📋 Ficha Técnica y Diagnóstico para el Ciudadano
 Cada obra cuenta con un expediente interactivo estructurado en pestañas:
@@ -231,6 +229,7 @@ observatorio/
 │   │   │   ├── ObservatorioLogo.jsx # Isotipo vectorial SVG institucional
 │   │   │   ├── Navbar.jsx           # Cabecera con buscador y selector de tema
 │   │   │   ├── GeoFilterBar.jsx     # Selector encadenado y geodetección IP/GPS
+│   │   │   ├── CommandCenterView.jsx# Centro de Monitoreo Táctico con mapa integrado y spiderfy
 │   │   │   ├── MetricCards.jsx      # Tarjetas ejecutivas de KPIs de riesgo
 │   │   │   ├── CriticalProjects.jsx # Lista de obras críticas de alta severidad
 │   │   │   ├── SectorDistribution.jsx # Desglose de inversión por sector estatal

@@ -143,13 +143,14 @@ La base de datos analítica está estructurada en SQLite con soporte de transacc
 
 Construido como una Single Page Application (SPA) modular y reactiva:
 
-- **`App.jsx`**: Orquesta el estado global de la aplicación (filtros geográficos, criterios de búsqueda, modal de obra activa y selección de vistas).
-- **`MapaObras.jsx`**: Renderiza el mapa georreferenciado con Leaflet, utilizando marcadores coloreados según el nivel de riesgo y clustering dinámico.
+- **`App.jsx`**: Orquesta el estado global de la aplicación (resolución síncrona de filtros territoriales desde URL y LocalStorage, estado de tema y selección de vistas).
+- **`CommandCenterView.jsx`**: Centro de Monitoreo Táctico integral (C4 HUD). Combina inspección geoespacial Leaflet sobre OpenStreetMap, despliegue en abanico (*Spiderfy*) para desambiguar obras coincidentes en un mismo predio, ficha táctica flotante a demanda, métricas de desfase de cronograma por provincia y contención simétrica de columnas mediante `ResizeObserver`.
 - **`FichaObraModal.jsx`**: Componente central de auditoría con 5 pestañas de navegación:
   1. *Resumen Ciudadano*: Diagnóstico visual, semáforo de plazos, comparativa financiera vs. física y causales del cuaderno de obra.
-  2. *Fotos en Terreno*: Galería fotográfica oficial con metadatos técnicos.
+  2. *Fotos en Terreno*: Galería fotográfica oficial con metadatos técnicos y visor PDF integrado.
   3. *Línea de Tiempo & Metas*: Reconciliación de hitos y metrados del Formato 14.
   4. *Contratos & Alertas*: Panel con las alertas oficiales del SSI (MEF) y datos de contratistas del SEACE.
   5. *Documentos & MEF*: Descarga directa de expedientes y reportes oficiales sin CAPTCHA.
-- **`TopCriticos.jsx`**: Carrusel y lista destacada de obras con mayor Índice de Severidad de Riesgo.
-- **`TablaObras.jsx`**: Tabla interactiva con ordenamiento multi-columna, badges de criticidad y paginación rápida.
+- **`CriticalProjects.jsx`**: Carrusel y lista destacada de obras con mayor Índice de Severidad de Riesgo.
+- **`AllObrasTable.jsx`**: Tabla interactiva con ordenamiento multi-columna, badges de criticidad y paginación rápida.
+- **`ContratistasTable.jsx`**: Directorio de contratistas y consorcios con montos adjudicados en el SEACE.

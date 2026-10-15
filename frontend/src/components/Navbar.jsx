@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, ShieldAlert, MapPin, Building2, Layers, Sun, Moon } from 'lucide-react';
+import { Search, ShieldAlert, Activity, Building2, Layers, Sun, Moon } from 'lucide-react';
 import ObservatorioLogo from './ObservatorioLogo';
 
 export default function Navbar({
@@ -25,8 +25,8 @@ export default function Navbar({
           {/* Logo Oficial y Nombre */}
           <div
             className="flex items-center gap-3 cursor-pointer group select-none"
-            onClick={() => setActiveTab('dashboard')}
-            title="Ir al inicio del Observatorio"
+            onClick={() => setActiveTab('command')}
+            title="Ir al Centro de Mando del Observatorio"
           >
             <div className="transition-transform group-hover:scale-105">
               <ObservatorioLogo size={42} />
@@ -65,6 +65,18 @@ export default function Navbar({
           <div className="flex items-center gap-2">
             <nav className="flex items-center gap-1 bg-slate-100/90 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 transition-colors">
               <button
+                onClick={() => setActiveTab('command')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === 'command'
+                    ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/60'
+                }`}
+              >
+                <Activity className="w-3.5 h-3.5" />
+                <span>Centro de Monitoreo</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('dashboard')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   activeTab === 'dashboard'
@@ -74,18 +86,6 @@ export default function Navbar({
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
                 <span>Críticos & KPIs</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('mapa')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  activeTab === 'mapa'
-                    ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <MapPin className="w-3.5 h-3.5" />
-                <span>Mapa</span>
               </button>
 
               <button

@@ -39,7 +39,7 @@ def get_kpis(
     monto_en_riesgo = query.with_entities(func.sum(EvaluacionRiesgo.monto_en_riesgo)).scalar() or 0.0
     
     criticos_count = query.filter(EvaluacionRiesgo.nivel_alerta == "CRITICO").count()
-    alertas_count = query.filter(EvaluacionRiesgo.nivel_alerta.in_(["CRITICO", "ALTO"])).count()
+    alertas_count = query.filter(EvaluacionRiesgo.nivel_alerta.in_(["CRITICO", "ALTO", "MEDIO"])).count()
     
     # Desfase promedio (solo obras que tienen avance declarado)
     obras_con_avance = query.filter(Inversion.costo_actualizado > 0)

@@ -37,7 +37,7 @@ export default function SectorDistribution({ departamento }) {
     <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm dark:shadow-xl mb-8 transition-colors">
       <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-800">
         <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          <Landmark className="w-4 h-4 text-red-500" />
+          <Landmark className="w-4 h-4 text-sky-400" />
           <span>Inversión por Sector ({departamento || 'Nacional'})</span>
         </h3>
         <span className="text-xs text-slate-500 dark:text-slate-400">
@@ -58,7 +58,7 @@ export default function SectorDistribution({ departamento }) {
                 <span className="font-semibold text-slate-800 dark:text-slate-200 truncate" title={s.sector}>
                   {s.sector}
                 </span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                <span className="font-mono font-bold text-slate-200 shrink-0">
                   {formatMoney(s.monto_total)}
                 </span>
               </div>
@@ -66,7 +66,7 @@ export default function SectorDistribution({ departamento }) {
               <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-1.5">
                 <div
                   style={{ width: `${pct}%` }}
-                  className="h-full bg-gradient-to-r from-red-600 to-rose-500 rounded-full"
+                  className="h-full bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full"
                 ></div>
               </div>
 

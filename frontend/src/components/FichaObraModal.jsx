@@ -3,7 +3,8 @@ import {
   X, AlertTriangle, AlertCircle, Clock, FileText, Download, Building2,
   Calendar, DollarSign, ExternalLink, ShieldCheck, MapPin, CheckCircle2,
   FileSearch, HelpCircle, Radio, Phone, Mail, UserCheck, Activity,
-  Camera, Layers, ArrowRight, Image as ImageIcon, Eye, ShieldAlert, Info
+  Camera, Layers, ArrowRight, Image as ImageIcon, Eye, ShieldAlert, Info,
+  TrendingUp
 } from 'lucide-react';
 import { getObraDetalle } from '../services/api';
 import DocumentStrategyModal from './DocumentStrategyModal';
@@ -242,7 +243,7 @@ export default function FichaObraModal({ cui, onClose }) {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       {/* 1. Plazo */}
                       <div className="p-3.5 rounded-xl bg-white dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800/80 space-y-1.5 shadow-xs">
                         <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -353,11 +354,43 @@ export default function FichaObraModal({ cui, onClose }) {
                         )}
                       </div>
 
-                      {/* 3. Documentos Oficiales */}
+                      {/* 3. Eficiencia de Inversión */}
+                      <div className="p-3.5 rounded-xl bg-white dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800/80 space-y-1.5 shadow-xs">
+                        <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0" />
+                            <span>3. Eficiencia de Inversión</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-cyan-500">Meta &gt;80%</span>
+                        </div>
+                        <div>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-xl font-black text-slate-900 dark:text-white">
+                              {Math.max(0, Math.min(100, 100 - (obra.diferencia_avance || 0))).toFixed(1)}%
+                            </span>
+                            <span className={`text-[11px] font-bold ${
+                              (obra.diferencia_avance || 0) <= 5
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : (obra.diferencia_avance || 0) <= 15
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-rose-600 dark:text-rose-400'
+                            }`}>
+                              {(obra.diferencia_avance || 0) <= 5 ? 'Óptima' : (obra.diferencia_avance || 0) <= 15 ? 'Aceptable' : 'Riesgo de Desvío'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                            {obra.diferencia_avance > 15
+                              ? 'Existe desbalance de gasto sobre lo construido en terreno.'
+                              : 'Ritmo de gasto sincronizado con el avance físico.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 4. Documentos Oficiales y Supervisión */}
                       <div className="p-3.5 rounded-xl bg-white dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800/80 space-y-1.5 shadow-xs">
                         <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
                           <FileText className="w-4 h-4 text-purple-500 dark:text-purple-400 shrink-0" />
-                          <span>3. Adendas y Supervisión</span>
+                          <span>4. Adendas y Supervisión</span>
                         </div>
                         <div>
                           <span className="inline-block px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-xs font-bold border border-purple-200 dark:bg-purple-950/80 dark:text-purple-300 dark:border-purple-800">

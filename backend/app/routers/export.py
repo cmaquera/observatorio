@@ -28,7 +28,15 @@ def export_obras_csv(
     if distrito:
         query = query.filter(Inversion.distrito == distrito.upper())
     if nivel_alerta and nivel_alerta != "TODAS":
-        query = query.filter(EvaluacionRiesgo.nivel_alerta == nivel_alerta.upper())
+        alerta_upper = nivel_alerta.upper()
+        if alerta_upper == "CRITICO":
+            query = query.filter(EvaluacionRiesgo.nivel_alerta == "CRITICO")
+        elif alerta_upper in ("ALTO", "OBSERVADAS", "OBSERVADA"):
+            query = query.filter(EvaluacionRiesgo.nivel_alerta.in_(["ALTO", "MEDIO"]))
+        elif alerta_upper in ("NORMAL", "EN_PLAZO", "EN PLAZO"):
+            query = query.filter(EvaluacionRiesgo.nivel_alerta.in_(["NORMAL", "BAJO", "SIN_DATOS"]))
+        else:
+            query = query.filter(EvaluacionRiesgo.nivel_alerta == alerta_upper)
 
     obras = query.limit(2000).all()
 

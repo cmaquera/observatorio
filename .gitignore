@@ -30,6 +30,7 @@ test_temp*.py
 *.db-wal
 *.db-shm
 *.db-journal
+backend/obras.db
 
 # Node / Frontend
 frontend/node_modules/

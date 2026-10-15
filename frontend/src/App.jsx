@@ -10,6 +10,7 @@ import SectorDistribution from './components/SectorDistribution';
 import FichaObraModal from './components/FichaObraModal';
 import DocumentStrategyModal from './components/DocumentStrategyModal';
 import ObservatorioLogo from './components/ObservatorioLogo';
+import CommandCenterView from './components/CommandCenterView';
 import { getKpis, getCriticos, getExportCsvUrl, getDepartamentos, getProvincias } from './services/api';
 import {
   detectLocationByIp,
@@ -20,8 +21,71 @@ import {
 } from './services/geoDetector';
 import { ShieldCheck, Info, Database, FileSearch } from 'lucide-react';
 
+// Obtiene los filtros iniciales de forma síncrona: URL Params > LocalStorage > Fallback Cusco
+function getInitialFilters() {
+  if (typeof window !== 'undefined' && window.location.search) {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const dpto = params.get('departamento');
+      if (dpto) {
+        return {
+          departamento: dpto,
+          provincia: params.get('provincia') || '',
+          distrito: params.get('distrito') || '',
+          nivel_alerta: params.get('nivel_alerta') || 'TODAS',
+          sector: params.get('sector') || '',
+          q: params.get('q') || ''
+        };
+      }
+    } catch (e) {}
+  }
+
+  const saved = getSavedGeoPreference();
+  if (saved && saved.departamento) {
+    return {
+      departamento: saved.departamento,
+      provincia: saved.provincia || '',
+      distrito: saved.distrito || '',
+      nivel_alerta: 'TODAS',
+      sector: '',
+      q: ''
+    };
+  }
+
+  return {
+    departamento: 'CUSCO',
+    provincia: '',
+    distrito: '',
+    nivel_alerta: 'TODAS',
+    sector: '',
+    q: ''
+  };
+}
+
+function getInitialGeoStatus(initialFilters) {
+  if (initialFilters && initialFilters.departamento) {
+    const parts = [initialFilters.departamento];
+    if (initialFilters.provincia) parts.push(initialFilters.provincia);
+    if (initialFilters.distrito) parts.push(initialFilters.distrito);
+    return {
+      loading: false,
+      source: 'saved',
+      label: parts.join(' / '),
+      detail: 'Filtro recordado de tu última sesión',
+      detectedIp: null
+    };
+  }
+  return {
+    loading: true,
+    source: null,
+    label: '',
+    detail: '',
+    detectedIp: null
+  };
+}
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'mapa' | 'obras' | 'empresas'
+  const [activeTab, setActiveTab] = useState('command'); // 'command' | 'dashboard' | 'obras' | 'empresas'
   const [selectedCui, setSelectedCui] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showStrategyModal, setShowStrategyModal] = useState(false);
@@ -51,52 +115,50 @@ export default function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // Filtros globales
-  const [filters, setFilters] = useState({
-    departamento: 'CUSCO', // Región piloto por defecto
-    provincia: '',
-    distrito: '',
-    nivel_alerta: 'TODAS',
-    sector: '',
-    q: ''
-  });
+  // Filtros globales inicializados de forma síncrona
+  const [filters, setFilters] = useState(getInitialFilters);
 
   // Estado del motor de geolocalización (IP / GPS / Guardado)
-  const [geoStatus, setGeoStatus] = useState({
-    loading: true,
-    source: null, // 'saved' | 'ip' | 'ip_unmatched' | 'gps' | 'manual'
-    label: '',
-    detail: '',
-    detectedIp: null
-  });
+  const [geoStatus, setGeoStatus] = useState(() => getInitialGeoStatus(filters));
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState(null);
 
-  // Detección inicial de ubicación geográfica (LocalStorage -> IP)
+  // Sincronizar y persistir automáticamente la preferencia geográfica en localStorage y URL
   useEffect(() => {
+    if (filters.departamento) {
+      saveGeoPreference({
+        departamento: filters.departamento,
+        provincia: filters.provincia || '',
+        distrito: filters.distrito || ''
+      });
+
+      try {
+        const url = new URL(window.location.href);
+        if (filters.departamento) url.searchParams.set('departamento', filters.departamento);
+        else url.searchParams.delete('departamento');
+
+        if (filters.provincia) url.searchParams.set('provincia', filters.provincia);
+        else url.searchParams.delete('provincia');
+
+        if (filters.distrito) url.searchParams.set('distrito', filters.distrito);
+        else url.searchParams.delete('distrito');
+
+        window.history.replaceState({}, '', url.toString());
+      } catch (e) {}
+    }
+  }, [filters.departamento, filters.provincia, filters.distrito]);
+
+  // Detección inicial de ubicación geográfica (solo si el usuario no tiene filtro previo guardado)
+  useEffect(() => {
+    const saved = getSavedGeoPreference();
+    if (saved && saved.departamento) {
+      // Ya tiene preferencia activa, no sobreescribir con IP
+      return;
+    }
+
     let isMounted = true;
 
     async function initGeolocation() {
-      // 1. Revisar si el usuario ya tiene una preferencia guardada en localStorage
-      const saved = getSavedGeoPreference();
-      if (saved && saved.departamento) {
-        if (isMounted) {
-          setFilters((prev) => ({
-            ...prev,
-            departamento: saved.departamento,
-            provincia: saved.provincia || '',
-            distrito: saved.distrito || ''
-          }));
-          setGeoStatus({
-            loading: false,
-            source: 'saved',
-            label: `${saved.departamento}${saved.provincia ? ` / ${saved.provincia}` : ''}`,
-            detail: 'Ubicación recordada de tu última visita',
-            detectedIp: null
-          });
-        }
-        return;
-      }
 
       // 2. Consultar departamentos con datos en la base de datos
       let dbDepts = [];
@@ -299,7 +361,7 @@ export default function App() {
       />
 
       {/* 2. Contenido Principal */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className={`flex-1 w-full mx-auto transition-all ${activeTab === 'command' ? 'max-w-[1920px] px-3 sm:px-4 lg:px-6 py-4' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-6'}`}>
         
         {/* Filtro Geográfico Jerárquico con detección inteligente */}
         <GeoFilterBar
@@ -312,20 +374,37 @@ export default function App() {
           gpsError={gpsError}
         />
 
-        {/* Indicador de Conciliación Oficial en Línea */}
-        <div className="flex items-center justify-between bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3.5 py-1.5 mb-5 text-xs text-slate-600 dark:text-slate-400 shadow-sm dark:shadow-none transition-colors">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span>Auditoría en vivo: cruce automático de datos con <strong className="text-slate-800 dark:text-slate-200">MEF SSI</strong>, <strong className="text-slate-800 dark:text-slate-200">Formato 12-B</strong> y <strong className="text-slate-800 dark:text-slate-200">SEACE</strong></span>
-          </div>
-          <span className="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline">Reconciliación de avance físico real activa</span>
-        </div>
+        {/* Vista Centro de Mando Táctico (C4 HUD) */}
+        {activeTab === 'command' && (
+          <CommandCenterView
+            filters={filters}
+            setFilters={setFilters}
+            kpis={kpis}
+            criticalProjects={criticalProjects}
+            onSelectProject={(cui) => setSelectedCui(cui)}
+            loadingKpis={loadingKpis}
+          />
+        )}
 
-        {/* Tarjetas Ejecutivas de Métricas (KPIs) */}
-        <MetricCards kpis={kpis} loading={loadingKpis} />
+        {/* Indicadores clásicos para otras pestañas */}
+        {activeTab !== 'command' && (
+          <>
+            {/* Indicador de Conciliación Oficial en Línea */}
+            <div className="flex items-center justify-between bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3.5 py-1.5 mb-5 text-xs text-slate-600 dark:text-slate-400 shadow-sm dark:shadow-none transition-colors">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span>Auditoría en vivo: cruce automático de datos con <strong className="text-slate-800 dark:text-slate-200">MEF SSI</strong>, <strong className="text-slate-800 dark:text-slate-200">Formato 12-B</strong> y <strong className="text-slate-800 dark:text-slate-200">SEACE</strong></span>
+              </div>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline">Reconciliación de avance físico real activa</span>
+            </div>
+
+            {/* Tarjetas Ejecutivas de Métricas (KPIs) */}
+            <MetricCards kpis={kpis} loading={loadingKpis} />
+          </>
+        )}
 
         {/* Contenido según la pestaña activa */}
         {activeTab === 'dashboard' && (
