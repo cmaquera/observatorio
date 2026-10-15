@@ -125,7 +125,6 @@ flowchart TD
 - **Ficha Táctica Flotante con Apertura a Demanda**: Panel de inspección detallado que se activa únicamente por selección manual (clic en marcador, obra o alerta), permitiendo examinar desfases físicos vs. financieros, diagnóstico del MEF y auditoría directa.
 - **Paleta No Semafórica para Sectores**: Esquema cromático diferenciado para sectores económicos (Vial, Salud, Agua, Educación, Otros) independiente del semáforo de criticidad (Crítico, Observadas, En Plazo) para prevenir sesgos de interpretación.
 - **Persistencia Síncrona de Filtros (LocalStorage + URL State)**: Sincronización transparente de la ubicación en la URL (`?departamento=...&provincia=...&distrito=...`) y en almacenamiento local, garantizando que al recargar la página (F5) se preserve de inmediato el filtro territorial sin reiniciar a la región completa.
-- **Georreferenciación Híbrida y GeoInvierte Oficial**: Detección de coordenadas exactas del expediente de formulación vía servicio ArcGIS del MEF (`cartografia_pip_georef_edicion_lectura`) con cascada de contingencia por UBIGEO para las 25 regiones del Perú, eliminando desplazamientos erróneos de obras con coordenadas 0.0 en el dataset de origen.
 - **Alineación Dinámica y Scroll Interno**: Contención reactiva basada en `ResizeObserver` para acoplar la altura de las tres columnas a la matriz de *Desfase de Cronograma*, eliminando espacios en blanco inferiores.
 
 ### 6. 📋 Ficha Técnica y Diagnóstico para el Ciudadano
@@ -345,12 +344,6 @@ python -m app.etl.runner --region "" --limit 2000
 
 # Carga masiva desatendida de todo el país (sin llamadas en vivo):
 python -m app.etl.runner --region "" --limit 0 --skip-enrich
-
-# Reconciliar y enriquecer obras críticas y con 0% de avance físico:
-python -m app.etl.enrich_db --mode critical_and_zero --workers 6 --limit 100
-
-# Corregir y enriquecer exclusivamente obras con coordenadas en 0.0 desde GeoInvierte (MEF):
-python -m app.etl.enrich_db --mode geo_missing --workers 4 --limit 0
 ```
 
 ---

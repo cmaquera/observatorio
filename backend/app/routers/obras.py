@@ -256,14 +256,6 @@ def get_obra_detalle(cui: str, db: Session = Depends(get_db)):
                     f"y se encuentra en etapa de liquidación final sin riesgo financiero adverso."
                 )
 
-            if mef_data.get("ubicacion_oficial"):
-                geo_info = mef_data["ubicacion_oficial"]
-                if geo_info.get("latitud") and geo_info.get("longitud"):
-                    # Solo actualizar si las coordenadas actuales están en 0.0 o vacías
-                    if not out.latitud or out.latitud == 0.0 or not out.longitud or out.longitud == 0.0:
-                        out.latitud = geo_info["latitud"]
-                        out.longitud = geo_info["longitud"]
-
             if mef_data.get("linea_tiempo"):
                 out.linea_tiempo = mef_data["linea_tiempo"]
             else:

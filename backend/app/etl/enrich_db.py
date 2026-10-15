@@ -68,7 +68,7 @@ def aplicar_enriquecimiento(
 
         query = db.query(Inversion).join(EvaluacionRiesgo)
 
-        if only_pending and target_mode != "geo_missing":
+        if only_pending:
             if re_enrich_days and re_enrich_days > 0:
                 cutoff = datetime.utcnow() - timedelta(days=re_enrich_days)
                 query = query.filter(
@@ -87,14 +87,6 @@ def aplicar_enriquecimiento(
             query = query.filter(
                 (EvaluacionRiesgo.nivel_alerta.in_(["CRITICO", "ALTO"])) |
                 ((Inversion.avance_fisico == 0.0) & (Inversion.avance_financiero > 20.0))
-            )
-        elif target_mode == "geo_missing":
-            query = query.filter(
-                (Inversion.latitud == None) |
-                (Inversion.latitud == 0.0) |
-                (Inversion.longitud == None) |
-                (Inversion.longitud == 0.0) |
-                (Inversion.latitud == -9.1899)
             )
         elif target_mode == "all":
             pass
@@ -160,27 +152,6 @@ def aplicar_enriquecimiento(
                         if data.get("fec_fin"):
                             inv.fec_fin_ejec_fisica = data["fec_fin"]
 
-                        # SOLO actualizar coordenadas si la obra en base de datos está en 0.0 o vacía
-                        coords_en_cero = (
-                            not inv.latitud or inv.latitud == 0.0 or
-                            not inv.longitud or inv.longitud == 0.0 or
-                            inv.latitud == -9.1899
-                        )
-                        if coords_en_cero:
-                            mef_live = data.get("mef_live_data") or {}
-                            geo_oficial = mef_live.get("ubicacion_oficial")
-                            if geo_oficial and geo_oficial.get("latitud") and geo_oficial.get("longitud"):
-                                inv.latitud = geo_oficial["latitud"]
-                                inv.longitud = geo_oficial["longitud"]
-                                print(f"[📍 GEO] CUI {cui}: Coordenadas fijadas desde GeoInvierte -> ({inv.latitud}, {inv.longitud})")
-                            else:
-                                from app.utils.ubigeo_helper import resolver_coordenadas
-                                lat_ubig, lon_ubig = resolver_coordenadas(None, None, inv.departamento, inv.provincia, inv.distrito, ubigeo=inv.ubigeo)
-                                if lat_ubig and lon_ubig and (lat_ubig != 0.0 or lon_ubig != 0.0):
-                                    inv.latitud = lat_ubig
-                                    inv.longitud = lon_ubig
-                                    print(f"[📍 GEO] CUI {cui}: Coordenadas fijadas desde Catálogo Ubigeo -> ({inv.latitud}, {inv.longitud})")
-
                         ev.score_criticidad = eval_data["score_criticidad"]
                         ev.nivel_alerta = eval_data["nivel_alerta"]
                         ev.alerta_plazo_vencido = eval_data["alerta_plazo_vencido"]
@@ -229,7 +200,7 @@ def aplicar_enriquecimiento(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Enriquecimiento progresivo oficial MEF/SEACE en micro-lotes")
-    parser.add_argument("--mode", type=str, default="critical_and_zero", choices=["critical", "zero_physics", "critical_and_zero", "geo_missing", "all"])
+    parser.add_argument("--mode", type=str, default="critical_and_zero", choices=["critical", "zero_physics", "critical_and_zero", "all"])
     parser.add_argument("--workers", type=int, default=4, help="Número de hilos concurrentes hacia el MEF (default: 4)")
     parser.add_argument("--limit", type=int, default=50, help="Límite de obras a enriquecer en este lote (default: 50, 0 para todas)")
     parser.add_argument("--all-records", action="store_true", help="Ignorar si ya fueron enriquecidas y procesar de nuevo")

@@ -108,18 +108,6 @@ export default function FichaObraModal({ cui, onClose }) {
                     <MapPin className="w-3.5 h-3.5 text-red-500" />
                     {obra.departamento} · {obra.provincia} · {obra.distrito}
                   </span>
-                  {obra.latitud && obra.longitud && (
-                    <a
-                      href={obra.datos_en_vivo_mef?.direct_urls?.url_geoinvierte || `https://ofi5.mef.gob.pe/geoinvierteportals/index.html?query=cartografia_pip_georef_edicion_lectura_7101,COD_UNICO,${obra.cui}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Abrir ubicación oficial en GeoInvierte (MEF)"
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-[10px] font-mono hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer"
-                    >
-                      <span>📍 {obra.latitud.toFixed(4)}, {obra.longitud.toFixed(4)}</span>
-                      <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
-                  )}
                   <span>•</span>
                   <span>{obra.entidad}</span>
                   <span>•</span>
@@ -1134,23 +1122,6 @@ export default function FichaObraModal({ cui, onClose }) {
                           <span className="text-[10px] text-slate-500 dark:text-slate-400">Adicionales, Ampliaciones y Fotos</span>
                         </div>
                         <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-500 dark:group-hover:text-rose-400 shrink-0" />
-                      </a>
-
-                      <a
-                        href={obra.datos_en_vivo_mef?.direct_urls?.url_geoinvierte || `https://ofi5.mef.gob.pe/geoinvierteportals/index.html?query=cartografia_pip_georef_edicion_lectura_7101,COD_UNICO,${obra.cui}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/60 flex items-center justify-between group transition-colors shadow-xs"
-                      >
-                        <div>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 block">Mapa GeoInvierte (MEF)</span>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                            {obra.datos_en_vivo_mef?.ubicacion_oficial?.localidad
-                              ? `Georref: ${obra.datos_en_vivo_mef.ubicacion_oficial.localidad}`
-                              : 'Ubicación oficial en cartografía PIP'}
-                          </span>
-                        </div>
-                        <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 shrink-0" />
                       </a>
 
                       {(obra.linea_tiempo?.url_reporte_mef || obra.datos_en_vivo_mef?.direct_urls?.url_ejecucion_fisica_obra) && (

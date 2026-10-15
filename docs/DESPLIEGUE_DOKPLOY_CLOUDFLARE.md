@@ -181,9 +181,6 @@ docker exec -it observatorio_backend python -m app.etl.runner --region "" --limi
 # Tarea programada recomendada en Dokploy / Crontab (todos los domingos 3:00 AM)
 # 0 3 * * 0 docker exec observatorio_backend python -m app.etl.runner --region "" --limit 0 --skip-enrich
 
-# Corregir y enriquecer exclusivamente obras con coordenadas en (0,0) desde GeoInvierte oficial (ArcGIS MEF)
-docker exec -it observatorio_backend python -m app.etl.enrich_db --mode geo_missing --workers 4 --limit 0
-
 # Respaldar la base de datos SQLite persistida
 docker cp observatorio_backend:/app/data/observatorio.db ~/backup_observatorio_$(date +%F).db
 ```
