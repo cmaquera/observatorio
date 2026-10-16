@@ -187,3 +187,29 @@ docker exec -it observatorio_backend python -m app.etl.enrich_db --mode geo_miss
 # Respaldar la base de datos SQLite persistida
 docker cp observatorio_backend:/app/data/observatorio.db ~/backup_observatorio_$(date +%F).db
 ```
+
+---
+
+## ⚠️ 8. Preguntas Frecuentes y Solución de Problemas (Troubleshooting)
+
+### Error: `failed to fetch anonymous token: dial tcp [2606:...]:443: connect: network is unreachable`
+* **Causa**: Al construir las imágenes en Dokploy (`python:3.12-slim`, `node:20-alpine`, `nginx:alpine`), Docker intenta conectarse a `auth.docker.io` usando una dirección **IPv6**. Si tu servidor o router local no tiene enrutamiento IPv6 activo a internet, la conexión falla con `network is unreachable`.
+* **Solución rápida en el servidor Ubuntu**:
+  Desactiva temporal o permanentemente IPv6 en el servidor para forzar el uso de IPv4:
+  ```bash
+  # 1. Desactivar IPv6 temporalmente (efecto inmediato)
+  sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+  sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+  sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=1
+
+  # 2. Hacerlo persistente tras reiniciar
+  echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+  echo "net.ipv6.conf.default.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+  echo "net.ipv6.conf.lo.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+  sudo sysctl -p
+
+  # 3. Reiniciar el servicio de Docker
+  sudo systemctl restart docker
+  ```
+  Luego, regresa a Dokploy y pulsa **Deploy** (o **Redeploy**). Dokploy descargará las imágenes inmediatamente sobre IPv4.
+
