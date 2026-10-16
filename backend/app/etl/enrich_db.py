@@ -49,7 +49,8 @@ def aplicar_enriquecimiento(
     max_workers: int = 4,
     limit: int = 50,
     only_pending: bool = True,
-    re_enrich_days: int = None
+    re_enrich_days: int = None,
+    region: str = None
 ):
     start_time = time.time()
     check_and_apply_migrations()
@@ -62,11 +63,14 @@ def aplicar_enriquecimiento(
 
         print("================================================================")
         print("   ENRIQUECIMIENTO Y RECONCILIACIÓN EN LÍNEA DE INVERSIONES     ")
-        print(f"   Modo: {target_mode} | Hilos: {max_workers} | Límite lote: {limit if limit > 0 else 'SIN LÍMITE'}")
+        print(f"   Modo: {target_mode} | Región: {region or 'TODAS'} | Hilos: {max_workers} | Límite lote: {limit if limit > 0 else 'SIN LÍMITE'}")
         print(f"   Estado global BD: {total_enriquecidas}/{total_inversiones} enriquecidas ({total_pendientes} pendientes)")
         print("================================================================")
 
         query = db.query(Inversion).join(EvaluacionRiesgo)
+
+        if region and region.strip():
+            query = query.filter(Inversion.departamento == region.strip().upper())
 
         if only_pending and target_mode != "geo_missing":
             if re_enrich_days and re_enrich_days > 0:
@@ -230,6 +234,7 @@ def aplicar_enriquecimiento(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Enriquecimiento progresivo oficial MEF/SEACE en micro-lotes")
     parser.add_argument("--mode", type=str, default="critical_and_zero", choices=["critical", "zero_physics", "critical_and_zero", "geo_missing", "all"])
+    parser.add_argument("--region", type=str, default=None, help="Filtrar por departamento (ej. TACNA, CUSCO, LIMA)")
     parser.add_argument("--workers", type=int, default=4, help="Número de hilos concurrentes hacia el MEF (default: 4)")
     parser.add_argument("--limit", type=int, default=50, help="Límite de obras a enriquecer en este lote (default: 50, 0 para todas)")
     parser.add_argument("--all-records", action="store_true", help="Ignorar si ya fueron enriquecidas y procesar de nuevo")
@@ -241,5 +246,6 @@ if __name__ == "__main__":
         max_workers=args.workers,
         limit=args.limit,
         only_pending=not args.all_records,
-        re_enrich_days=args.re_enrich_days
+        re_enrich_days=args.re_enrich_days,
+        region=args.region
     )
