@@ -1,13 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Landmark, ChevronDown, ChevronUp } from 'lucide-react';
 import { getSectores } from '../services/api';
-
-const formatMoney = (val) => {
-  if (!val && val !== 0) return 'S/ 0.00';
-  if (val >= 1_000_000_000) return `S/ ${(val / 1_000_000_000).toFixed(2)} Mil Millones`;
-  if (val >= 1_000_000) return `S/ ${(val / 1_000_000).toFixed(2)} Millones`;
-  return `S/ ${val.toLocaleString('es-PE')}`;
-};
+import { formatCompactMoney as formatMoney } from '../utils/formatters';
 
 export default function SectorDistribution({ departamento }) {
   const [sectores, setSectores] = useState([]);
@@ -58,7 +52,7 @@ export default function SectorDistribution({ departamento }) {
                 <span className="font-semibold text-slate-800 dark:text-slate-200 truncate" title={s.sector}>
                   {s.sector}
                 </span>
-                <span className="font-mono font-bold text-slate-200 shrink-0">
+                <span className="font-mono font-bold text-slate-900 dark:text-slate-200 shrink-0">
                   {formatMoney(s.monto_total)}
                 </span>
               </div>

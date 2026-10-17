@@ -1,16 +1,6 @@
 import React from 'react';
 import { DollarSign, AlertOctagon, Clock, TrendingUp, ShieldAlert, CheckCircle2 } from 'lucide-react';
-
-const formatMoney = (amount) => {
-  if (!amount && amount !== 0) return 'S/ 0.00';
-  if (amount >= 1_000_000_000) {
-    return `S/ ${(amount / 1_000_000_000).toFixed(2)} Mil Millones`;
-  }
-  if (amount >= 1_000_000) {
-    return `S/ ${(amount / 1_000_000).toFixed(2)} Millones`;
-  }
-  return `S/ ${amount.toLocaleString('es-PE', { maximumFractionDigits: 0 })}`;
-};
+import { formatCompactMoney as formatMoney } from '../utils/formatters';
 
 export default function MetricCards({ kpis, loading }) {
   if (loading) {

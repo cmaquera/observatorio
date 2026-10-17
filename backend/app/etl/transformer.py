@@ -30,16 +30,6 @@ def parse_date(val: Any) -> date | None:
             return None
     return None
 
-# Catálogo ilustrativo de contratistas comunes en obras de infraestructura para vincular contratos
-CONTRATISTAS_MOCK = [
-    {"ruc": "20524896321", "razon_social": "CONSORCIO VIAL DEL SUR", "es_consorcio": True, "detalle": "CONSTRUCTORA SANTA FE S.A.C. (60%) / INGENIERIA Y CONSTRUCCION ANDINA S.R.L. (40%)"},
-    {"ruc": "20489632145", "razon_social": "OBRAS CIVILES Y SANEAMIENTO PERU S.A.C.", "es_consorcio": False, "detalle": None},
-    {"ruc": "20601245893", "razon_social": "CONSORCIO EDIFICACIONES CUSCO", "es_consorcio": True, "detalle": "INVERSIONES ARQUITECTURA DEL SUR E.I.R.L. (50%) / GRUPO CONSTRUCTOR INCA S.A. (50%)"},
-    {"ruc": "20365894123", "razon_social": "CONSTRUCTORA HIDRAULICA DEL PERU S.A.", "es_consorcio": False, "detalle": None},
-    {"ruc": "20547896512", "razon_social": "SERVICIOS DE INGENIERIA Y PAVIMENTOS S.A.C.", "es_consorcio": False, "detalle": None},
-    {"ruc": "20609874125", "razon_social": "CONSORCIO EDUCATIVO ANDINO", "es_consorcio": True, "detalle": "CONSTRUCTORA MAGISTERIO S.A.C. (70%) / PROYECTOS VIALES DEL SUR S.A.C. (30%)"},
-]
-
 def transformar_registro(raw: Dict[str, str]) -> Dict[str, Any]:
     cui = raw.get("CODIGO_UNICO", "").strip().strip('"')
     if not cui:
@@ -94,13 +84,16 @@ def transformar_registro(raw: Dict[str, str]) -> Dict[str, Any]:
         estado=estado
     )
 
+    monto_viable = parse_float(raw.get("MONTO_VIABLE"))
+
     # Análisis de Documentos, Adendas y Causales
     from app.etl.document_analyzer import analizar_documentos_y_causales
     doc_insights = analizar_documentos_y_causales(
         cui=cui,
         diferencia_avance=evaluacion["diferencia_avance"],
         dias_atraso=evaluacion["dias_atraso"],
-        costo=costo_actualizado
+        costo=costo_actualizado,
+        monto_viable=monto_viable
     )
 
     # Inversión limpia
@@ -117,7 +110,7 @@ def transformar_registro(raw: Dict[str, str]) -> Dict[str, Any]:
         "ubigeo": ubigeo,
         "latitud": lat,
         "longitud": lon,
-        "monto_viable": parse_float(raw.get("MONTO_VIABLE")),
+        "monto_viable": monto_viable,
         "costo_actualizado": costo_actualizado,
         "pia_actual": pia_actual,
         "pim_actual": pim_actual,
@@ -140,30 +133,27 @@ def transformar_registro(raw: Dict[str, str]) -> Dict[str, Any]:
         "sobrecosto_adendas": doc_insights["sobrecosto_adendas"]
     }
 
-    # Datos de Contrato SEACE vinculados
-    # Usamos un hash determinista del CUI para asignar contratista
-    idx_contratista = abs(hash(cui)) % len(CONTRATISTAS_MOCK)
-    emp = CONTRATISTAS_MOCK[idx_contratista]
-    
-    nro_contrato = f"CONTRATO N° {cui[-3:]}-2023-{inversion_data['nivel_gobierno']}"
-    proceso_seace = f"LP-SM-{cui[-4:]}-2023-CS-1"
-    monto_contrato = round(costo_actualizado * 0.95, 2) if costo_actualizado > 0 else 500000.0
-
-    contratos_data = [{
-        "cui": cui,
-        "codigo_proceso_seace": proceso_seace,
-        "nro_contrato": nro_contrato,
-        "objeto": f"EJECUCIÓN DE OBRA: {inversion_data['nombre'][:120]}...",
-        "ruc_contratista": emp["ruc"],
-        "razon_social": emp["razon_social"],
-        "es_consorcio": emp["es_consorcio"],
-        "detalle_consorcio": emp["detalle"],
-        "monto_contratado": monto_contrato,
-        "fecha_suscripcion": fec_ini or date(2023, 1, 15),
-        "plazo_dias": 360,
-        "estado_contrato": "VIGENTE" if estado != "CERRADO" else "CULMINADO",
-        "url_contrato_pdf": f"https://prodapp2.seace.gob.pe/seacebus-uiwd-pub/buscadorPublico/descargarArchivo.xhtml?idDoc={cui}"
-    }]
+    # Contratos SEACE: solo se registran si vienen explícitamente en la fuente o tras enriquecimiento SEACE en vivo
+    contratos_data = []
+    ruc_raw = raw.get("RUC_CONTRATISTA", "").strip().strip('"')
+    razon_raw = raw.get("RAZON_SOCIAL", "").strip().strip('"')
+    if ruc_raw and razon_raw:
+        nro_contrato = raw.get("NRO_CONTRATO", "").strip().strip('"') or f"SEACE-{cui}"
+        contratos_data.append({
+            "cui": cui,
+            "codigo_proceso_seace": raw.get("CODIGO_PROCESO", "").strip().strip('"') or f"SEACE-{cui}",
+            "nro_contrato": nro_contrato,
+            "objeto": f"EJECUCIÓN DE OBRA: {inversion_data['nombre'][:120]}",
+            "ruc_contratista": ruc_raw,
+            "razon_social": razon_raw,
+            "es_consorcio": "CONSORCIO" in razon_raw.upper(),
+            "detalle_consorcio": None,
+            "monto_contratado": parse_float(raw.get("MONTO_CONTRATADO")) or costo_actualizado,
+            "fecha_suscripcion": fec_ini,
+            "plazo_dias": int(parse_float(raw.get("PLAZO_DIAS")) or 0),
+            "estado_contrato": "VIGENTE" if estado != "CERRADO" else "CULMINADO",
+            "url_contrato_pdf": f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepContratac?codigo={cui}"
+        })
 
     # Documentos oficiales descargables (Generados directamente por el Observatorio)
     documentos_data = [
@@ -188,7 +178,7 @@ def transformar_registro(raw: Dict[str, str]) -> Dict[str, Any]:
         {
             "cui": cui,
             "tipo_documento": "CONTRATO_SEACE",
-            "titulo": f"Ficha Contractual y Adjudicación {nro_contrato} (SEACE).csv",
+            "titulo": f"Ficha Contractual y Adjudicación - CUI {cui} (SEACE).csv",
             "url_descarga": f"/api/obras/{cui}/descargar/contrato",
             "origen": "SEACE",
             "tamanio_mb": 0.18,

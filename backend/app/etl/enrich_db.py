@@ -74,7 +74,7 @@ def aplicar_enriquecimiento(
 
         if only_pending and target_mode != "geo_missing":
             if re_enrich_days and re_enrich_days > 0:
-                cutoff = datetime.utcnow() - timedelta(days=re_enrich_days)
+                cutoff = datetime.now(timezone.utc) - timedelta(days=re_enrich_days)
                 query = query.filter(
                     (Inversion.enriquecido == False) |
                     (Inversion.enriquecido == None) |
@@ -164,6 +164,37 @@ def aplicar_enriquecimiento(
                         if data.get("fec_fin"):
                             inv.fec_fin_ejec_fisica = data["fec_fin"]
 
+                        mef_live = data.get("mef_live_data") or {}
+                        if mef_live.get("adicionales_reportados") is not None:
+                            inv.nro_adendas = int(mef_live.get("adicionales_reportados") or 0)
+                        if mef_live.get("causal_ampliacion"):
+                            inv.causal_retraso = str(mef_live["causal_ampliacion"])[:500]
+                        elif mef_live.get("ultimo_estado_situacional_f12b"):
+                            inv.causal_retraso = str(mef_live["ultimo_estado_situacional_f12b"])[:500]
+                        if mef_live.get("responsable_uei"):
+                            inv.supervisor_obra = str(mef_live["responsable_uei"])[:250]
+
+                        contratos_seace = mef_live.get("contratos_seace") or []
+                        if contratos_seace:
+                            from app.models import ContratoEmpresa
+                            db_write.query(ContratoEmpresa).filter(ContratoEmpresa.cui == cui).delete(synchronize_session=False)
+                            for c_item in contratos_seace:
+                                db_write.add(ContratoEmpresa(
+                                    cui=cui,
+                                    codigo_proceso_seace=c_item["codigo_proceso_seace"],
+                                    nro_contrato=c_item["nro_contrato"],
+                                    objeto=c_item["objeto"],
+                                    ruc_contratista=c_item["ruc_contratista"],
+                                    razon_social=c_item["razon_social"],
+                                    es_consorcio=c_item["es_consorcio"],
+                                    detalle_consorcio=None,
+                                    monto_contratado=c_item["monto_contratado"] or inv.costo_actualizado,
+                                    fecha_suscripcion=inv.fec_ini_ejec_fisica,
+                                    plazo_dias=0,
+                                    estado_contrato=c_item["estado_contrato"],
+                                    url_contrato_pdf=c_item["url_contrato_pdf"]
+                                ))
+
                         # SOLO actualizar coordenadas si la obra en base de datos está en 0.0 o vacía
                         coords_en_cero = (
                             not inv.latitud or inv.latitud == 0.0 or
@@ -171,7 +202,6 @@ def aplicar_enriquecimiento(
                             inv.latitud == -9.1899
                         )
                         if coords_en_cero:
-                            mef_live = data.get("mef_live_data") or {}
                             geo_oficial = mef_live.get("ubicacion_oficial")
                             if geo_oficial and geo_oficial.get("latitud") and geo_oficial.get("longitud"):
                                 inv.latitud = geo_oficial["latitud"]

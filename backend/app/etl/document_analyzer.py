@@ -48,44 +48,38 @@ CAUSALES_CATALOGO = [
     }
 ]
 
-SUPERVISORES_MOCK = [
-    "CONSORCIO SUPERVISOR ANDINO (RUC: 20514789654)",
-    "INGENIERÍA Y SUPERVISIÓN DEL SUR S.A.C. (RUC: 20498765432)",
-    "CONSORCIO FISCALIZADOR CUSCO (RUC: 20603214587)",
-    "GESTIÓN Y CONTROL DE PROYECTOS VIALES S.R.L. (RUC: 20521478963)",
-    "SUPERVISIÓN TÉCNICA DE INFRAESTRUCTURA PERÚ S.A. (RUC: 20369852147)"
-]
-
-def analizar_documentos_y_causales(cui: str, diferencia_avance: float, dias_atraso: int, costo: float) -> Dict[str, Any]:
+def analizar_documentos_y_causales(
+    cui: str,
+    diferencia_avance: float,
+    dias_atraso: int,
+    costo: float,
+    monto_viable: float = 0.0
+) -> Dict[str, Any]:
     """
-    Analiza la combinación de indicadores de la obra y simula/extrae el resultado
-    del procesamiento documental de adendas e informes de supervisión de Infobras.
+    Evalúa de forma determinista los indicadores objetivos declarados en el MEF
+    (variación presupuestal respecto al monto viable, días de atraso y desfase financiero)
+    sin inventar supervisores ni adendas sintéticas. Los contratos, supervisores y adendas
+    específicas se concilian posteriormente desde las APIs en vivo de SEACE y Formato 12-B.
     """
-    cui_hash = abs(hash(cui))
+    sobrecosto = 0.0
+    if monto_viable and monto_viable > 0 and costo > monto_viable:
+        sobrecosto = round(costo - monto_viable, 2)
 
-    # Determinar si la obra tiene adendas registradas
-    tiene_problemas = (dias_atraso > 0) or (diferencia_avance >= 15.0)
-    
-    if tiene_problemas:
-        # Entre 1 y 4 adendas aprobadas
-        nro_adendas = (cui_hash % 4) + 1
-        pct_sobrecosto = ((cui_hash % 15) + 5) / 100.0 # 5% a 20% de sobrecosto
-        sobrecosto = round(costo * pct_sobrecosto, 2)
-
-        # Asignar causal específica
-        idx_causal = cui_hash % len(CAUSALES_CATALOGO)
-        causal = CAUSALES_CATALOGO[idx_causal]["descripcion"]
+    if dias_atraso > 0 and diferencia_avance >= 15.0:
+        causal = (
+            f"Desfase físico-financiero (+{diferencia_avance:.1f} pp) y plazo contractual vencido "
+            f"({dias_atraso} días de atraso según cronograma MEF)."
+        )
+    elif dias_atraso > 0:
+        causal = f"Plazo de ejecución física vencido ({dias_atraso} días de atraso respecto a la fecha programada en MEF)."
+    elif diferencia_avance >= 15.0:
+        causal = f"Desembolso financiero adelantado en +{diferencia_avance:.1f} pp respecto al avance físico reportado."
     else:
-        nro_adendas = cui_hash % 2 # 0 o 1 adenda menor
-        sobrecosto = 0.0
-        causal = "Obra ejecutándose sin causales de paralización registradas en cuadernos de obra ni adendas extraordinarias."
-
-    idx_sup = cui_hash % len(SUPERVISORES_MOCK)
-    supervisor = SUPERVISORES_MOCK[idx_sup]
+        causal = None
 
     return {
         "causal_retraso": causal,
-        "supervisor_obra": supervisor,
-        "nro_adendas": nro_adendas,
+        "supervisor_obra": None,
+        "nro_adendas": 0,
         "sobrecosto_adendas": sobrecosto
     }

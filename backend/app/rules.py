@@ -142,3 +142,21 @@ def evaluar_obra(
         "diferencia_avance": diferencia_avance,
         "justificacion_tecnica": justificacion
     }
+
+
+def aplicar_filtro_nivel_alerta(query: Any, column_alerta: Any, nivel_alerta: str | None) -> Any:
+    """
+    Aplica de forma centralizada el filtro de semáforo de alerta sobre una consulta SQLAlchemy.
+    """
+    if not nivel_alerta or nivel_alerta.upper() == "TODAS":
+        return query
+
+    alerta_upper = nivel_alerta.strip().upper()
+    if alerta_upper == "CRITICO":
+        return query.filter(column_alerta == "CRITICO")
+    if alerta_upper in ("ALTO", "OBSERVADAS", "OBSERVADA"):
+        return query.filter(column_alerta.in_(["ALTO", "MEDIO"]))
+    if alerta_upper in ("NORMAL", "EN_PLAZO", "EN PLAZO"):
+        return query.filter(column_alerta.in_(["NORMAL", "BAJO", "SIN_DATOS"]))
+    return query.filter(column_alerta == alerta_upper)
+

@@ -10,11 +10,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-
-const formatMoney = (amount) => {
-  if (!amount && amount !== 0) return 'S/ 0.00';
-  return `S/ ${amount.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
+import { formatMoney } from '../utils/formatters';
 
 export default function CriticalProjects({ projects = [], onSelectProject, loading }) {
   const [showAll, setShowAll] = useState(false);

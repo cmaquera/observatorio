@@ -131,6 +131,21 @@ export default function Navbar({
           </div>
 
         </div>
+
+        {/* Buscador Universal en Móvil (< 768px) */}
+        <div className="md:hidden pb-3">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Buscar por CUI (ej. 2141328), obra o contratista..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="w-full bg-slate-100/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2" />
+          </div>
+        </div>
       </div>
     </header>
   );

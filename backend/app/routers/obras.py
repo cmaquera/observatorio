@@ -1,5 +1,8 @@
 import io
+import os
+import re
 import csv
+import html
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, Response
@@ -15,6 +18,7 @@ from app.etl.mef_live_client import (
     sintetizar_linea_tiempo_ciudadana,
     download_mef_archivo
 )
+from app.rules import aplicar_filtro_nivel_alerta
 
 router = APIRouter(prefix="/api/obras", tags=["Obras"])
 
@@ -47,16 +51,7 @@ def list_obras(
         query = query.filter(Inversion.distrito == distrito.upper())
 
     # Filtro de alerta semafórica unificado
-    if nivel_alerta and nivel_alerta != "TODAS":
-        alerta_upper = nivel_alerta.upper()
-        if alerta_upper == "CRITICO":
-            query = query.filter(EvaluacionRiesgo.nivel_alerta == "CRITICO")
-        elif alerta_upper in ("ALTO", "OBSERVADAS", "OBSERVADA"):
-            query = query.filter(EvaluacionRiesgo.nivel_alerta.in_(["ALTO", "MEDIO"]))
-        elif alerta_upper in ("NORMAL", "EN_PLAZO", "EN PLAZO"):
-            query = query.filter(EvaluacionRiesgo.nivel_alerta.in_(["NORMAL", "BAJO", "SIN_DATOS"]))
-        else:
-            query = query.filter(EvaluacionRiesgo.nivel_alerta == alerta_upper)
+    query = aplicar_filtro_nivel_alerta(query, EvaluacionRiesgo.nivel_alerta, nivel_alerta)
 
     # Filtro de sector
     if sector:
@@ -145,16 +140,7 @@ def get_map_points(
         query = query.filter(Inversion.provincia == provincia.upper())
     if distrito:
         query = query.filter(Inversion.distrito == distrito.upper())
-    if nivel_alerta and nivel_alerta != "TODAS":
-        alerta_upper = nivel_alerta.upper()
-        if alerta_upper == "CRITICO":
-            query = query.filter(EvaluacionRiesgo.nivel_alerta == "CRITICO")
-        elif alerta_upper in ("ALTO", "OBSERVADAS", "OBSERVADA"):
-            query = query.filter(EvaluacionRiesgo.nivel_alerta.in_(["ALTO", "MEDIO"]))
-        elif alerta_upper in ("NORMAL", "EN_PLAZO", "EN PLAZO"):
-            query = query.filter(EvaluacionRiesgo.nivel_alerta.in_(["NORMAL", "BAJO", "SIN_DATOS"]))
-        else:
-            query = query.filter(EvaluacionRiesgo.nivel_alerta == alerta_upper)
+    query = aplicar_filtro_nivel_alerta(query, EvaluacionRiesgo.nivel_alerta, nivel_alerta)
 
     points = query.limit(limit).all()
 
@@ -186,13 +172,18 @@ def get_archivo_mef(cui: str = Query(...), nroseg: int = Query(...), archivo: st
     Sirve con caché persistente en disco y proxy seguro los archivos oficiales adjuntos del MEF
     (fotografías de obra en JPG y resúmenes de valorización mensual en PDF).
     """
-    data, mime_type = download_mef_archivo(cui.strip(), nroseg, archivo.strip())
+    clean_cui = cui.strip()
+    safe_filename = re.sub(r"[^A-Za-z0-9._-]", "", os.path.basename(archivo.strip()))
+    if not re.fullmatch(r"\d{4,12}", clean_cui) or not safe_filename:
+        raise HTTPException(status_code=400, detail="Parámetros de archivo o CUI inválidos.")
+
+    data, mime_type = download_mef_archivo(clean_cui, nroseg, safe_filename)
     if not data:
         raise HTTPException(status_code=404, detail="Archivo no encontrado o no disponible en los servidores del MEF.")
     
     headers = {
         "Cache-Control": "public, max-age=604800, immutable",
-        "Content-Disposition": f"inline; filename={archivo.strip()}"
+        "Content-Disposition": f'inline; filename="{safe_filename}"'
     }
     return Response(content=data, media_type=mime_type, headers=headers)
 
@@ -458,27 +449,40 @@ def descargar_ficha_completa_html(cui: str, db: Session = Depends(get_db)):
     if not obra:
         raise HTTPException(status_code=404, detail="Obra no encontrada")
 
+    def _esc(val: object) -> str:
+        return html.escape(str(val or ""))
+
     ev = obra.evaluacion_riesgo
     contratos_html = ""
     if obra.contratos:
         for c in obra.contratos:
             contratos_html += f"""
             <tr>
-              <td>{c.codigo_proceso_seace}</td>
-              <td><strong>{c.razon_social}</strong><br><small>RUC: {c.ruc_contratista} {'(Consorcio)' if c.es_consorcio else ''}</small></td>
-              <td>{c.nro_contrato}</td>
+              <td>{_esc(c.codigo_proceso_seace)}</td>
+              <td><strong>{_esc(c.razon_social)}</strong><br><small>RUC: {_esc(c.ruc_contratista)} {'(Consorcio)' if c.es_consorcio else ''}</small></td>
+              <td>{_esc(c.nro_contrato)}</td>
               <td>S/ {c.monto_contratado:,.2f}</td>
-              <td>{c.estado_contrato}</td>
+              <td>{_esc(c.estado_contrato)}</td>
             </tr>
             """
     else:
         contratos_html = "<tr><td colspan='5' style='text-align:center;'>No se registran contratos en SEACE</td></tr>"
 
+    cui_esc = _esc(obra.cui)
+    nombre_esc = _esc(obra.nombre)
+    entidad_esc = _esc(obra.entidad)
+    ubicacion_esc = f"{_esc(obra.departamento)} / {_esc(obra.provincia)} / {_esc(obra.distrito)}"
+    nivel_gob_esc = _esc(obra.nivel_gobierno)
+    nivel_alerta_esc = _esc(ev.nivel_alerta if ev else "NORMAL")
+    justificacion_esc = _esc(ev.justificacion_tecnica if ev else "Dentro de parámetros.")
+    causal_esc = _esc(obra.causal_retraso or "Sin incidencias críticas reportadas en cuaderno de obra.")
+    supervisor_esc = _esc(obra.supervisor_obra or "No asignada / En proceso")
+
     html_content = f"""<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Ficha Oficial de Inversión - CUI {obra.cui}</title>
+  <title>Ficha Oficial de Inversión - CUI {cui_esc}</title>
   <style>
     body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; color: #1e293b; margin: 0; padding: 30px; }}
     .header {{ display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #dc2626; padding-bottom: 15px; margin-bottom: 25px; }}
@@ -512,14 +516,14 @@ def descargar_ficha_completa_html(cui: str, db: Session = Depends(get_db)):
       <div class="subtitle">Expediente Oficial de Auditoría Cívica y Transparencia de Inversiones</div>
     </div>
     <div style="text-align: right;">
-      <span class="badge">CUI {obra.cui}</span>
+      <span class="badge">CUI {cui_esc}</span>
       <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Generado: {datetime.now().strftime("%d/%m/%Y %H:%M")}</div>
     </div>
   </div>
 
-  <h1>{obra.nombre}</h1>
+  <h1>{nombre_esc}</h1>
   <p style="color: #475569; font-size: 13px; margin-bottom: 20px;">
-    <strong>Entidad:</strong> {obra.entidad} | <strong>Ubicación:</strong> {obra.departamento} / {obra.provincia} / {obra.distrito} | <strong>Nivel:</strong> {obra.nivel_gobierno}
+    <strong>Entidad:</strong> {entidad_esc} | <strong>Ubicación:</strong> {ubicacion_esc} | <strong>Nivel:</strong> {nivel_gob_esc}
   </p>
 
   <div class="grid">
@@ -543,14 +547,14 @@ def descargar_ficha_completa_html(cui: str, db: Session = Depends(get_db)):
 
   <div class="alert-box">
     <strong>Diagnóstico de Alertas y Severidad de Riesgo (ISR {ev.score_criticidad if ev else 0}):</strong><br>
-    Nivel: <strong>{ev.nivel_alerta if ev else 'NORMAL'}</strong>. {ev.justificacion_tecnica if ev else 'Dentro de parámetros.'}<br>
+    Nivel: <strong>{nivel_alerta_esc}</strong>. {justificacion_esc}<br>
     <em>Diferencia de avances: {obra.diferencia_avance:.1f} puntos porcentuales. Días de atraso: {obra.dias_atraso} días.</em>
   </div>
 
   <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; margin-bottom: 25px; font-size: 13px;">
     <strong style="color: #334155; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">🔍 Inteligencia Documental (Adendas, Supervisión y Causales):</strong>
-    <p style="margin: 8px 0 4px 0;"><strong>• Causal documentada de retraso:</strong> {obra.causal_retraso or 'Sin incidencias críticas reportadas en cuaderno de obra.'}</p>
-    <p style="margin: 4px 0;"><strong>• Empresa Supervisora:</strong> {obra.supervisor_obra or 'No asignada / En proceso'}</p>
+    <p style="margin: 8px 0 4px 0;"><strong>• Causal documentada de retraso:</strong> {causal_esc}</p>
+    <p style="margin: 4px 0;"><strong>• Empresa Supervisora:</strong> {supervisor_esc}</p>
     <p style="margin: 4px 0;"><strong>• Modificaciones Contractuales:</strong> {obra.nro_adendas or 0} adendas aprobadas con sobrecosto estimado de S/ {obra.sobrecosto_adendas or 0.0:,.2f}</p>
   </div>
 
@@ -576,10 +580,11 @@ def descargar_ficha_completa_html(cui: str, db: Session = Depends(get_db)):
 </body>
 </html>"""
 
-    filename = f"Ficha_Oficial_CUI_{obra.cui}.html"
+    safe_cui = re.sub(r"[^A-Za-z0-9_-]", "", str(obra.cui))
+    filename = f"Ficha_Oficial_CUI_{safe_cui}.html"
     return Response(
         content=html_content.encode("utf-8"),
         media_type="text/html; charset=utf-8",
-        headers={"Content-Disposition": f"inline; filename={filename}"}
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
     )
 

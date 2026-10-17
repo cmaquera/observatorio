@@ -8,28 +8,27 @@ Este manual expone la metodología analítica, las fórmulas matemáticas y las 
 
 ## 1. Índice de Severidad de Riesgo (ISR)
 
-El **Índice de Severidad de Riesgo (ISR)** es una métrica continua de 0 a 100 puntos que cuantifica el grado de peligro técnico-financiero en el que se encuentra una inversión pública. Se compone de 5 subíndices ponderados:
+El **Índice de Severidad de Riesgo (ISR)** es una métrica continua de 0 a 100 puntos que cuantifica el grado de peligro técnico-financiero en el que se encuentra una inversión pública. Se compone de 4 componentes aditivos acotados implementados en `backend/app/rules.py`:
 
-$$\text{ISR} = W_1 \cdot S_{\text{desfase}} + W_2 \cdot S_{\text{atraso}} + W_3 \cdot S_{\text{reporte}} + W_4 \cdot S_{\text{presupuesto}} + W_5 \cdot S_{\text{controversia}}$$
+$$\text{ISR} = \min\left(100,\; S_{\text{desfase}} + S_{\text{atraso}} + S_{\text{monto}} + S_{\text{reporte}}\right)$$
 
-### Ponderaciones Oficiales ($W_i$)
+### Componentes Oficiales del Score
 
-| Dimensión | Ponderación ($W_i$) | Criterio de Evaluación |
+| Componente | Puntaje Máximo | Fórmula / Criterio de Evaluación |
 | :--- | :---: | :--- |
-| **1. Desfase Físico-Financiero** | $0.35$ (35%) | Brecha en pp entre avance financiero devengado y avance físico reportado |
-| **2. Plazo Vencido de Obra** | $0.25$ (25%) | Días calendario de demora acumulados respecto al calendario contractual |
-| **3. Falta de Reportes en F12-B** | $0.15$ (15%) | Días transcurridos sin actualización de valorizaciones en el MEF |
-| **4. Magnitud Presupuestal** | $0.15$ (15%) | Costo actualizado del proyecto (mayor asignación presupuestal = mayor impacto) |
-| **5. Controversias y Paralización** | $0.10$ (10%) | Estado resuelto, arbitraje en SEACE o paralización formal de campo |
+| **1. Desfase Físico-Financiero ($S_{\text{desfase}}$)** | **45 pts** | $\min(45.0,\; \max(0.0,\; \text{diferencia\_avance} \times 1.5))$ |
+| **2. Plazo Vencido de Obra ($S_{\text{atraso}}$)** | **30 pts** | $\min(30.0,\; (\text{dias\_atraso} / 180.0) \times 30.0)$ si el plazo está vencido |
+| **3. Magnitud de Monto en Riesgo ($S_{\text{monto}}$)** | **15 pts** | $\min(15.0,\; \log_{10}(\max(10.0,\; \text{monto\_en\_riesgo})) \times 2.0)$ |
+| **4. Falta de Reportes en F12-B ($S_{\text{reporte}}$)** | **10 pts** | $10.0$ pts si supera los 180 días sin declaración en el Banco de Inversiones |
 
 ### Categorización Semafórica
 
-| Rango de ISR | Nivel de Alerta | Acción Recomendada |
+| Rango de ISR / Condición | Nivel de Alerta | Acción Recomendada |
 | :---: | :---: | :--- |
-| $\ge 70.0$ | 🔴 **CRÍTICO** | Intervención urgente y auditoría especial de la Contraloría / OCI |
-| $50.0 - 69.9$ | 🟠 **ALTO** | Requerimiento formal de actualización de F12-B y verificación de campo |
-| $30.0 - 49.9$ | 🟡 **MEDIO** | Monitoreo preventivo del calendario de valorizaciones |
-| $< 30.0$ | 🟢 **NORMAL** | Obra en ejecución regular conforme a cronograma |
+| $\ge 65.0$ o (*Desfase Crítico* y *Plazo Vencido*) | 🔴 **CRÍTICO** | Intervención urgente y auditoría especial de la Contraloría / OCI |
+| $40.0 - 64.9$ o (*Desfase Crítico* o *Plazo Vencido*) | 🟠 **ALTO** | Requerimiento formal de actualización de F12-B y verificación de campo |
+| $20.0 - 39.9$ o ($\text{Desfase} \ge 10\text{ pp}$ o *Sin Reporte*) | 🟡 **MEDIO** | Monitoreo preventivo del calendario de valorizaciones |
+| $< 20.0$ (o obra culminada $\ge 95\%$) | 🟢 **NORMAL** | Obra en ejecución regular o en liquidación final sin riesgo adverso |
 
 ---
 

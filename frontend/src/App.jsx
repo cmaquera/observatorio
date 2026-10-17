@@ -3,7 +3,6 @@ import Navbar from './components/Navbar';
 import GeoFilterBar from './components/GeoFilterBar';
 import MetricCards from './components/MetricCards';
 import CriticalProjects from './components/CriticalProjects';
-import MapView from './components/MapView';
 import AllObrasTable from './components/AllObrasTable';
 import ContratistasTable from './components/ContratistasTable';
 import SectorDistribution from './components/SectorDistribution';
@@ -421,20 +420,12 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'mapa' && (
-          <div>
-            <MapView
-              filters={filters}
-              onSelectProject={(cui) => setSelectedCui(cui)}
-            />
-          </div>
-        )}
-
         {activeTab === 'obras' && (
           <div>
             <AllObrasTable
               filters={filters}
               onSelectProject={(cui) => setSelectedCui(cui)}
+              onExportCsv={handleExportCsv}
             />
           </div>
         )}
@@ -443,7 +434,6 @@ export default function App() {
           <div>
             <ContratistasTable
               departamento={filters.departamento}
-              onSelectCompany={() => {}}
             />
           </div>
         )}

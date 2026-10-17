@@ -1215,6 +1215,7 @@ export default function FichaObraModal({ cui, onClose }) {
 
       {showStrategyModal && (
         <DocumentStrategyModal
+          isOpen={showStrategyModal}
           cui={obra?.cui}
           nombreObra={obra?.nombre}
           onClose={() => setShowStrategyModal(false)}

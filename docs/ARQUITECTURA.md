@@ -38,7 +38,7 @@ El sistema está concebido bajo una arquitectura orientada a servicios desacopla
                │
                ▼
      [ Frontend SPA Moderno ]
-         └── React 18 + Vite + Tailwind CSS + Lucide Icons + Leaflet Maps
+         └── React 19 + Vite + Tailwind CSS + Lucide Icons + Leaflet Maps
 ```
 
 ---
@@ -49,15 +49,15 @@ El sistema está concebido bajo una arquitectura orientada a servicios desacopla
 
 El pipeline se encarga de procesar grandes volúmenes de datos abiertos sin saturar la memoria RAM:
 
-- **`extractor.py`**: Utiliza streaming HTTP por bloques para leer el archivo maestro `DETALLE_INVERSIONES.csv` de los Datos Abiertos del MEF (~235 MB). No carga el archivo completo en memoria, sino que transmite línea por línea con manejo de codificación `Latin-1` / `UTF-8`.
+- **`extractor.py`**: Utiliza streaming HTTP con `io.TextIOWrapper` y `csv.reader` para leer el archivo maestro `DETALLE_INVERSIONES.csv` de los Datos Abiertos del MEF (~235 MB) sin cargar el archivo completo en memoria.
 - **`transformer.py`**: Limpia campos monetarios con separadores de miles y decimales peruanos, normaliza fechas en formatos ISO, imputa coordenadas geográficas a partir de los centroides de distritos del INEI (`ubigeo_helper.py`), y calcula los desfases físicos vs. financieros.
-- **`rules.py`**: Motor de scoring analítico que computa el **Índice de Severidad de Riesgo (ISR)** asignando pesos proporcionales a brechas presupuestales, días de atraso, falta de reportes y controversias contractuales.
-- **`loader.py`**: Agrupa registros en lotes transaccionales de 50 a 100 operaciones `INSERT/UPDATE` para maximizar el throughput de escritura en SQLite.
+- **`rules.py`**: Motor de scoring analítico que computa el **Índice de Severidad de Riesgo (ISR)** y centraliza el filtrado semafórico.
+- **`loader.py`**: Agrupa registros en lotes transaccionales de operaciones `INSERT/UPDATE` para maximizar el throughput de escritura en SQLite.
 - **`enrich_db.py`**: Ejecuta reconciliación concurrente para las obras prioritarias (`CRITICO` y `ALTO`) cruzando en tiempo real con SEACE y el aplicativo SSI del MEF.
 
 ### 2.2 Cliente en Vivo MEF y Motor de Alertas SSI (`mef_live_client.py`)
 
-Debido a que los datos abiertos del MEF pueden presentar cierto retraso frente al estado operativo de campo, este módulo consulta en vivo los servicios oficiales gubernamentales:
+Debido a que los datos abiertos del MEF pueden presentar cierto retraso frente al estado operativo de campo, este módulo consulta en vivo y en paralelo (`ThreadPoolExecutor`) los servicios oficiales gubernamentales:
 
 1. **Catálogo Oficial de Alertas del SSI**:
    Recrea fielmente el motor algorítmico del MEF (`script_ssi01.js`):
@@ -70,8 +70,8 @@ Debido a que los datos abiertos del MEF pueden presentar cierto retraso frente a
    * `Alerta 11`: Plazo límite de días para la desactivación administrativa (`NUM_DIA_DESACT`).
 2. **Reconciliación de Cierre (Formato 09)**:
    Consulta `https://ofi5.mef.gob.pe/InformeCierre/ConsultaInforme?cui={cui}` validando que el cuerpo HTML y el código renderizado pertenezcan inequívocamente a la obra solicitada, previniendo el fallback por defecto del servidor ASP.NET al SNIP 77845 (*Ampliación Bayóvar*).
-3. **Resiliencia HTTP**:
-   Implementa encabezados de navegación realistas (`User-Agent: Mozilla/5.0`), timeouts de conexión controlados (4 a 8 segundos), reintentos con backoff exponencial y contexto SSL permisivo para mitigar problemas de certificados intermedios en servidores del Estado.
+3. **Resiliencia HTTP y Caché Acotado**:
+   Implementa encabezados de navegación realistas (`User-Agent: Mozilla/5.0`), timeouts de conexión controlados y caché en memoria protegido por `threading.Lock` con límite máximo de entradas (`MAX_CACHE_ENTRIES = 1000`).
 
 ---
 
@@ -93,24 +93,24 @@ La base de datos analítica está estructurada en SQLite con soporte de transacc
 - `estado`, `situacion`, `causal_retraso` (VARCHAR): Estado situacional y motivo reportado.
 - `supervisor_obra`, `nro_adendas`, `sobrecosto_adendas` (VARCHAR / INTEGER / FLOAT): Datos de fiscalización.
 
-### 3.2 Tabla `evaluacion_riesgo`
+### 3.2 Tabla `evaluaciones_riesgo`
 - `id` (INTEGER, Primary Key)
 - `cui` (VARCHAR, Foreign Key -> `inversiones.cui`)
 - `score_criticidad` (FLOAT): Índice de Severidad de Riesgo de 0 a 100.
-- `nivel_alerta` (VARCHAR): Clasificación `CRITICO`, `ALTO`, `MEDIO`, `NORMAL`.
-- `desfase_pp`, `dias_atraso`, `dias_sin_reporte`, `monto_en_riesgo` (FLOAT / INTEGER).
-- `justificacion_tecnica` (TEXT): Explicación técnica del diagnóstico de criticidad.
+- `nivel_alerta` (VARCHAR): Clasificación `CRITICO`, `ALTO`, `MEDIO`, `NORMAL`, `SIN_DATOS`.
+- `alerta_plazo_vencido`, `alerta_desfase_financiero`, `alerta_avance_lento`, `alerta_sin_reporte` (BOOLEAN).
+- `monto_en_riesgo` (FLOAT), `justificacion_tecnica` (TEXT).
 
-### 3.3 Tabla `contratos`
+### 3.3 Tabla `contratos_empresas`
 - `id` (INTEGER, Primary Key)
 - `cui` (VARCHAR, Foreign Key -> `inversiones.cui`)
 - `codigo_proceso_seace`, `nro_contrato` (VARCHAR).
 - `ruc_contratista`, `razon_social` (VARCHAR).
-- `es_consorcio` (BOOLEAN), `detalle_consorcio` (TEXT con desglose de porcentajes).
+- `es_consorcio` (BOOLEAN), `detalle_consorcio` (TEXT).
 - `monto_contratado` (FLOAT), `fecha_suscripcion` (DATE), `plazo_dias` (INTEGER).
 - `estado_contrato` (VARCHAR), `url_contrato_pdf` (VARCHAR).
 
-### 3.4 Tabla `documentos`
+### 3.4 Tabla `documentos_fuentes`
 - `id` (INTEGER, Primary Key)
 - `cui` (VARCHAR, Foreign Key -> `inversiones.cui`)
 - `tipo_documento` (VARCHAR): `FICHA_OFICIAL`, `FICHA_12B_MEF`, `CONTRATO_SEACE`, `REPORTE_INFOBRAS`.
@@ -124,18 +124,22 @@ La base de datos analítica está estructurada en SQLite con soporte de transacc
 | Método | Ruta | Descripción |
 | :--- | :--- | :--- |
 | `GET` | `/api/dashboard/kpis` | Métricas agregadas y totales del observatorio |
-| `GET` | `/api/dashboard/top-criticos` | Top 10 de obras en mayor riesgo clasificadas por ISR |
+| `GET` | `/api/dashboard/criticos` | Ranking de obras en mayor riesgo clasificadas por ISR |
+| `GET` | `/api/dashboard/sectores` | Distribución presupuestal y conteo de obras por sector |
 | `GET` | `/api/obras` | Listado paginado de obras con filtros geográficos y de riesgo |
+| `GET` | `/api/obras/map/points` | Puntos georreferenciados ligeros para el mapa interactivo |
+| `GET` | `/api/obras/archivos/mef` | Proxy con caché en disco de fotografías y PDFs de valorización MEF |
 | `GET` | `/api/obras/{cui}` | Ficha técnica detallada, línea de tiempo, alertas SSI y contratos |
 | `GET` | `/api/obras/{cui}/descargar/ficha` | Generación y descarga de Ficha Oficial de Auditoría (HTML/PDF) |
 | `GET` | `/api/obras/{cui}/descargar/f12b` | Descarga de reporte de seguimiento F12-B en CSV |
 | `GET` | `/api/obras/{cui}/descargar/contrato` | Descarga de datos de contratación SEACE en CSV |
 | `GET` | `/api/obras/{cui}/descargar/infobras` | Descarga de ficha de control de Infobras en CSV |
 | `GET` | `/api/empresas` | Directorio de contratistas ordenados por monto adjudicado |
+| `GET` | `/api/geo/detect` | Detección de IP pública/privada del cliente |
 | `GET` | `/api/geo/departamentos` | Catálogo de departamentos con conteo de obras |
-| `GET` | `/api/geo/provincias/{dpto}` | Provincias pertenecientes a un departamento |
-| `GET` | `/api/geo/distritos/{dpto}/{prov}` | Distritos pertenecientes a una provincia |
-| `GET` | `/api/export/csv` | Exportación en streaming de los datos filtrados en CSV |
+| `GET` | `/api/geo/provincias?departamento={dpto}` | Provincias pertenecientes a un departamento |
+| `GET` | `/api/geo/distritos?departamento={dpto}&provincia={prov}` | Distritos pertenecientes a una provincia |
+| `GET` | `/api/export/csv` | Exportación en formato CSV de los datos filtrados |
 
 ---
 

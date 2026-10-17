@@ -1,10 +1,10 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import List, Optional, Dict, Any
 from sqlalchemy import (
     Column, String, Float, Integer, Boolean, Date, DateTime, ForeignKey, Index, Text
 )
 from sqlalchemy.orm import relationship
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from app.database import Base
 
 # ==================== MODELOS ORM (SQLAlchemy) ====================
@@ -57,7 +57,7 @@ class Inversion(Base):
     nro_adendas = Column(Integer, default=0)             # Cantidad de adendas de plazo/presupuesto
     sobrecosto_adendas = Column(Float, default=0.0)      # Monto adicional aprobado por adendas (S/)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     enriquecido = Column(Boolean, default=False, index=True)
     fecha_enriquecimiento = Column(DateTime, nullable=True)
 
@@ -143,8 +143,7 @@ class DocumentoOut(BaseModel):
     tamanio_mb: Optional[float] = 0.0
     fecha_documento: Optional[date] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ContratoOut(BaseModel):
     id: int
@@ -161,8 +160,7 @@ class ContratoOut(BaseModel):
     estado_contrato: str
     url_contrato_pdf: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class EvaluacionRiesgoOut(BaseModel):
     score_criticidad: float
@@ -174,8 +172,7 @@ class EvaluacionRiesgoOut(BaseModel):
     monto_en_riesgo: float
     justificacion_tecnica: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class InversionSimpleOut(BaseModel):
     cui: str
@@ -205,8 +202,7 @@ class InversionSimpleOut(BaseModel):
     enriquecido: Optional[bool] = False
     fecha_enriquecimiento: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class InversionDetalleOut(InversionSimpleOut):
     codigo_snip: Optional[str] = None
@@ -226,8 +222,7 @@ class InversionDetalleOut(InversionSimpleOut):
     fotos_obra: List[Dict[str, Any]] = []
     alertas_ssi: List[Dict[str, Any]] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class DashboardKpisOut(BaseModel):
     total_inversiones: int

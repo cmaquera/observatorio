@@ -1,3 +1,4 @@
+import ipaddress
 from typing import List
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
@@ -18,12 +19,14 @@ def detect_client_ip(request: Request):
     else:
         client_ip = request.client.host if request.client else "127.0.0.1"
 
-    is_private = (
-        client_ip in ("127.0.0.1", "::1", "localhost")
-        or client_ip.startswith("192.168.")
-        or client_ip.startswith("10.")
-        or client_ip.startswith("172.")
-    )
+    if client_ip == "localhost":
+        is_private = True
+    else:
+        try:
+            addr = ipaddress.ip_address(client_ip)
+            is_private = addr.is_private or addr.is_loopback
+        except ValueError:
+            is_private = True
 
     return {
         "ip": client_ip,

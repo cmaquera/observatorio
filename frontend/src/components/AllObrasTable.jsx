@@ -1,13 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Layers, ArrowUpDown, ChevronLeft, ChevronRight, AlertCircle, ArrowUpRight, Clock } from 'lucide-react';
+import { Layers, ArrowUpDown, ChevronLeft, ChevronRight, AlertCircle, ArrowUpRight, Clock, Download } from 'lucide-react';
 import { getObras } from '../services/api';
+import { formatMoney } from '../utils/formatters';
 
-const formatMoney = (val) => {
-  if (!val && val !== 0) return 'S/ 0.00';
-  return `S/ ${val.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
-
-export default function AllObrasTable({ filters, onSelectProject }) {
+export default function AllObrasTable({ filters, onSelectProject, onExportCsv }) {
   const [data, setData] = useState({ items: [], total: 0, total_pages: 1, page: 1 });
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -69,8 +65,8 @@ export default function AllObrasTable({ filters, onSelectProject }) {
           </p>
         </div>
 
-        {/* Ordenamiento */}
-        <div className="flex items-center gap-2 text-xs">
+        {/* Ordenamiento y Exportación */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
             <ArrowUpDown className="w-3.5 h-3.5" />
             <span>Ordenar por:</span>
@@ -85,6 +81,17 @@ export default function AllObrasTable({ filters, onSelectProject }) {
             <option value="desfase_desc">Mayor Desfase (Pagado vs Hecho)</option>
             <option value="nombre_asc">Nombre de Obra (A-Z)</option>
           </select>
+
+          {onExportCsv && (
+            <button
+              onClick={onExportCsv}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-400 dark:border-emerald-800/80 font-semibold transition-colors cursor-pointer"
+              title="Descargar padrón filtrado en formato CSV"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Exportar CSV</span>
+            </button>
+          )}
         </div>
       </div>
 

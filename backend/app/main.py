@@ -13,12 +13,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
+import os
+
 # CORS para permitir peticiones desde el frontend en desarrollo o producción
+cors_origins_env = os.getenv("CORS_ORIGINS", "*").strip()
+cors_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=cors_origins,
+    allow_credentials=(cors_origins != ["*"]),
+    allow_methods=["GET", "OPTIONS"],
     allow_headers=["*"],
 )
 

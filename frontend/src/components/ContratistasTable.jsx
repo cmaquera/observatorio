@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Building2, Search, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
 import { getEmpresas } from '../services/api';
+import { formatCompactMoney as formatMoney } from '../utils/formatters';
 
-const formatMoney = (val) => {
-  if (!val && val !== 0) return 'S/ 0.00';
-  if (val >= 1_000_000_000) return `S/ ${(val / 1_000_000_000).toFixed(2)} Mil Millones`;
-  if (val >= 1_000_000) return `S/ ${(val / 1_000_000).toFixed(2)} Millones`;
-  return `S/ ${val.toLocaleString('es-PE')}`;
-};
-
-export default function ContratistasTable({ departamento, onSelectCompany }) {
+export default function ContratistasTable({ departamento }) {
   const [empresas, setEmpresas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');

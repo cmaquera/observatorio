@@ -12,11 +12,15 @@ import json
 import re
 import time
 import datetime
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, Optional, List, Tuple
 
-# Caché en memoria con TTL de 1 hora
+# Caché en memoria con TTL de 1 hora y límite de tamaño para evitar fugas de memoria
 _CACHE: Dict[str, Dict[str, Any]] = {}
+_CACHE_LOCK = threading.Lock()
 CACHE_TTL_SECONDS = 3600
+MAX_CACHE_ENTRIES = 1000
 
 # Directorio de caché en disco para fotos y PDFs oficiales del MEF
 _ATTACHMENT_CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "cache_adjuntos"))
@@ -64,10 +68,10 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
     cui = str(cui).strip()
     now = time.time()
 
-    # 1. Verificar caché
-    if cui in _CACHE:
-        cached_entry = _CACHE[cui]
-        if now - cached_entry["timestamp"] < CACHE_TTL_SECONDS:
+    # 1. Verificar caché de forma thread-safe
+    with _CACHE_LOCK:
+        cached_entry = _CACHE.get(cui)
+        if cached_entry and (now - cached_entry["timestamp"] < CACHE_TTL_SECONDS):
             return cached_entry["data"]
 
     # URLs oficiales directas (sin pasar por la pantalla con CAPTCHA)
@@ -110,28 +114,41 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
     }
 
     try:
-        # Consulta 1: Formato 12B API (JSON)
-        f12b_data = _fetch_f12b_api(cui)
-        snip_code = None
-        if f12b_data:
-            result["disponible"] = True
-            result["modalidad_ejecucion"] = f12b_data.get("MODAL_EJEC")
-            result["estado_cierre"] = f12b_data.get("CIERRE_REGISTRADO")
-            result["fecha_fin_programada"] = f12b_data.get("FEC_FIN_EJ")
-            result["monto_expediente_tecnico"] = f12b_data.get("MTO_ET_SNIP") or f12b_data.get("MTO_ULT_ET")
-            result["ultimo_estado_situacional_f12b"] = f12b_data.get("ULT_ESTADO_SITUACIONAL")
-            result["porc_avance_fis_f12b"] = f12b_data.get("PORC_AVANCE_FIS")
-            if f12b_data.get("COD_SNIP"):
-                snip_code = str(f12b_data.get("COD_SNIP")).strip()
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            fut_f12b = pool.submit(_fetch_f12b_api, cui)
+            fut_hist = pool.submit(_fetch_historial_situacional_f12b, cui)
+            fut_comp = pool.submit(_fetch_factor_productivo_accion, cui)
+            fut_ssi = pool.submit(_fetch_det_inv_ssi, cui)
+            fut_geo = pool.submit(fetch_geoinvierte_coords, cui)
 
-        # Consulta 1.5: Historial Situacional y Problemáticas Oficiales F12B
-        hist_situ = _fetch_historial_situacional_f12b(cui)
+            f12b_data = fut_f12b.result()
+            snip_code = None
+            if f12b_data:
+                result["disponible"] = True
+                result["modalidad_ejecucion"] = f12b_data.get("MODAL_EJEC")
+                result["estado_cierre"] = f12b_data.get("CIERRE_REGISTRADO")
+                result["fecha_fin_programada"] = f12b_data.get("FEC_FIN_EJ")
+                result["monto_expediente_tecnico"] = f12b_data.get("MTO_ET_SNIP") or f12b_data.get("MTO_ULT_ET")
+                result["ultimo_estado_situacional_f12b"] = f12b_data.get("ULT_ESTADO_SITUACIONAL")
+                result["porc_avance_fis_f12b"] = f12b_data.get("PORC_AVANCE_FIS")
+                if f12b_data.get("COD_SNIP"):
+                    snip_code = str(f12b_data.get("COD_SNIP")).strip()
+
+            avance_f12b_val = float(f12b_data.get("PORC_AVANCE_FIS") or 0.0) if f12b_data else None
+            fut_cierre = pool.submit(_fetch_informe_cierre, cui, snip_code)
+            fut_seguim = pool.submit(_fetch_seguimiento_completo, cui, avance_f12b_val)
+
+            hist_situ = fut_hist.result()
+            cierre_data = fut_cierre.result()
+            seguim_data = fut_seguim.result()
+            comp_items, comp_weighted = fut_comp.result()
+            det_ssi = fut_ssi.result()
+            geo_info = fut_geo.result()
+
         if hist_situ:
             result["disponible"] = True
             result["historial_situacion"] = hist_situ
 
-        # Consulta 2: Informe de Cierre y Liquidación F09 (HTML)
-        cierre_data = _fetch_informe_cierre(cui, snip_code)
         if cierre_data and cierre_data.get("tiene_informe_cierre"):
             result["disponible"] = True
             result["en_funcionamiento"] = cierre_data.get("en_funcionamiento")
@@ -153,9 +170,6 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
             result["tiene_informe_cierre"] = False
             result["direct_urls"]["url_informe_cierre"] = None
 
-        # Consulta 3: Seguimiento SEACE, Hitos y Curva Física (JSON)
-        avance_f12b_val = float(f12b_data.get("PORC_AVANCE_FIS") or 0.0) if f12b_data else None
-        seguim_data = _fetch_seguimiento_completo(cui, avance_f12b=avance_f12b_val)
         if seguim_data:
             result["disponible"] = True
             result["adicionales_reportados"] = seguim_data.get("total_adicionales", 0)
@@ -168,21 +182,18 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
             result["fotos_obra"] = seguim_data.get("fotos_obra", [])
             result["avance_fisico_seace"] = seguim_data.get("avance_fisico_seace")
             result["estado_hito_seace"] = seguim_data.get("estado_hito")
+            result["contratos_seace"] = seguim_data.get("contratos_seace", [])
             
             if seguim_data.get("nroseg"):
                 url_rep_ejec = f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepEjecFisObra?codigo={cui}&nroseg={seguim_data.get('nroseg')}"
                 result["direct_urls"]["url_ejecucion_fisica_obra"] = url_rep_ejec
 
-        # Consulta 4: Factor Productivo y Acción (proyinv14)
-        comp_items, comp_weighted = _fetch_factor_productivo_accion(cui)
         if comp_items and len(comp_items) > 0:
             result["disponible"] = True
             result["ejecucion_por_componentes"] = comp_items
             result["avance_fisico_componentes"] = comp_weighted
             result["direct_urls"]["url_ejecucion_factor_accion"] = f"https://ofi5.mef.gob.pe/repseguim/proyinv14.html?codigo={cui}"
 
-        # Consulta 5: Alertas Oficiales del Sistema de Seguimiento de Inversiones (SSI - MEF)
-        det_ssi = _fetch_det_inv_ssi(cui)
         if det_ssi:
             result["disponible"] = True
             if not result.get("modalidad_ejecucion") and det_ssi.get("MODAL_EJEC"):
@@ -217,8 +228,6 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
         )
         result["alertas_ssi_mef"] = alertas_ssi
 
-        # Consulta 6: Ubicación geográfica oficial en GeoInvierte / ArcGIS MEF
-        geo_info = fetch_geoinvierte_coords(cui)
         if geo_info:
             result["disponible"] = True
             result["ubicacion_oficial"] = geo_info
@@ -227,11 +236,15 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
         # Fallback silencioso y seguro
         pass
 
-    # Guardar en caché
-    _CACHE[cui] = {
-        "timestamp": now,
-        "data": result
-    }
+    # Guardar en caché con control de concurrencia y límite de entradas
+    with _CACHE_LOCK:
+        if len(_CACHE) >= MAX_CACHE_ENTRIES and cui not in _CACHE:
+            oldest_key = min(_CACHE, key=lambda k: _CACHE[k]["timestamp"])
+            _CACHE.pop(oldest_key, None)
+        _CACHE[cui] = {
+            "timestamp": now,
+            "data": result
+        }
 
     return result
 
@@ -240,12 +253,17 @@ def _get_mef_download_token(cui: str, nroseg: int) -> Tuple[Optional[str], Optio
     """Obtiene o reutiliza el token de sesión confidencial y cookies para descargar archivos del MEF."""
     now = time.time()
     cache_key = f"{cui}_{nroseg}"
-    if cache_key in _SESSION_TOKEN_CACHE:
-        token, cookie_str, ts = _SESSION_TOKEN_CACHE[cache_key]
-        if now - ts < 1800:  # 30 minutos de validez
-            return token, cookie_str
+    with _CACHE_LOCK:
+        if cache_key in _SESSION_TOKEN_CACHE:
+            token, cookie_str, ts = _SESSION_TOKEN_CACHE[cache_key]
+            if now - ts < 1800:  # 30 minutos de validez
+                return token, cookie_str
 
-    html_url = f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepEjecFisObra?codigo={cui}&nroseg={nroseg}"
+    clean_cui = str(cui).strip()
+    if not re.fullmatch(r"\d{4,12}", clean_cui):
+        return None, None
+
+    html_url = f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepEjecFisObra?codigo={clean_cui}&nroseg={int(nroseg)}"
     req = urllib.request.Request(html_url, headers=_COMMON_HEADERS)
     try:
         with urllib.request.urlopen(req, timeout=7, context=_SSL_CTX) as resp:
@@ -255,7 +273,11 @@ def _get_mef_download_token(cui: str, nroseg: int) -> Tuple[Optional[str], Optio
             m = re.search(r'strTokenConfidencial\s*=\s*"([^"]+)"', html)
             if m:
                 token = m.group(1)
-                _SESSION_TOKEN_CACHE[cache_key] = (token, cookie_str, now)
+                with _CACHE_LOCK:
+                    if len(_SESSION_TOKEN_CACHE) >= MAX_CACHE_ENTRIES:
+                        oldest_k = min(_SESSION_TOKEN_CACHE, key=lambda k: _SESSION_TOKEN_CACHE[k][2])
+                        _SESSION_TOKEN_CACHE.pop(oldest_k, None)
+                    _SESSION_TOKEN_CACHE[cache_key] = (token, cookie_str, now)
                 return token, cookie_str
     except Exception:
         pass
@@ -267,7 +289,11 @@ def download_mef_archivo(cui: str, nroseg: int, archivo_id: str) -> Tuple[Option
     Descarga con reintentos y caché persistente en disco los archivos oficiales adjuntos del MEF
     (fotos de obra en JPG y resúmenes de valorización física en PDF).
     """
-    safe_name = os.path.basename(archivo_id.strip())
+    clean_cui = str(cui).strip()
+    safe_name = re.sub(r"[^A-Za-z0-9._-]", "", os.path.basename(archivo_id.strip()))
+    if not re.fullmatch(r"\d{4,12}", clean_cui) or not safe_name:
+        return None, "application/octet-stream"
+
     cache_path = os.path.join(_ATTACHMENT_CACHE_DIR, safe_name)
     ext = os.path.splitext(safe_name)[1].lower()
     default_mime = 'image/jpeg' if ext in ('.jpg', '.jpeg') else ('application/pdf' if ext == '.pdf' else 'application/octet-stream')
@@ -276,13 +302,14 @@ def download_mef_archivo(cui: str, nroseg: int, archivo_id: str) -> Tuple[Option
         with open(cache_path, 'rb') as f:
             return f.read(), default_mime
 
-    token, cookie_str = _get_mef_download_token(cui, nroseg)
+    token, cookie_str = _get_mef_download_token(clean_cui, int(nroseg))
     if not token:
         return None, default_mime
 
-    dl_url = f"https://ofi5.mef.gob.pe/invierte/general/downloadArchivoPublico?idArchivo={safe_name}&token={token}"
+    query_params = urllib.parse.urlencode({"idArchivo": safe_name, "token": token})
+    dl_url = f"https://ofi5.mef.gob.pe/invierte/general/downloadArchivoPublico?{query_params}"
     headers = dict(_COMMON_HEADERS)
-    headers['Referer'] = f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepEjecFisObra?codigo={cui}&nroseg={nroseg}"
+    headers['Referer'] = f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepEjecFisObra?codigo={clean_cui}&nroseg={int(nroseg)}"
     if cookie_str:
         headers['Cookie'] = cookie_str
 
@@ -295,7 +322,8 @@ def download_mef_archivo(cui: str, nroseg: int, archivo_id: str) -> Tuple[Option
                     f.write(data)
                 return data, default_mime
             # Si el token expiró, limpiar cache y permitir un nuevo intento
-            _SESSION_TOKEN_CACHE.pop(f"{cui}_{nroseg}", None)
+            with _CACHE_LOCK:
+                _SESSION_TOKEN_CACHE.pop(f"{clean_cui}_{int(nroseg)}", None)
     except Exception:
         pass
 
@@ -750,6 +778,33 @@ def _fetch_seguimiento_completo(cui: str, avance_f12b: Optional[float] = None) -
     cuadernos = [it.get("URL_CUAD_OBRA") for it in items if it.get("URL_CUAD_OBRA")]
     estado_hito = next((it.get("ESTADO_HITO") for it in items if it.get("ESTADO_HITO")), None)
 
+    contratos_seace = []
+    for it in items:
+        razon = (
+            it.get("NOM_CONTRATISTA")
+            or it.get("DES_CONTRATISTA")
+            or it.get("RAZON_SOCIAL")
+            or ""
+        ).strip()
+        ruc = str(it.get("RUC_CONTRATISTA") or it.get("NUM_RUC") or "").strip()
+        nro_cont = str(it.get("NUM_CONTRATO") or it.get("NRO_CONTRATO") or "").strip()
+        if razon or nro_cont:
+            try:
+                mto_cont = float(it.get("MTO_CONTRATO") or it.get("MTO_CONTRATADO") or 0.0)
+            except (ValueError, TypeError):
+                mto_cont = 0.0
+            contratos_seace.append({
+                "codigo_proceso_seace": str(it.get("DES_PROCESO") or it.get("NOM_PROCESO") or f"SEACE-{cui}"),
+                "nro_contrato": nro_cont or f"SEACE-{cui}",
+                "objeto": str(it.get("DES_OBJETO") or it.get("DES_CONTRATO") or "EJECUCIÓN DE OBRA"),
+                "ruc_contratista": ruc or "S/R",
+                "razon_social": razon or "CONTRATISTA REGISTRADO EN SEACE",
+                "es_consorcio": "CONSORCIO" in razon.upper(),
+                "monto_contratado": round(mto_cont, 2),
+                "estado_contrato": str(it.get("ESTADO_HITO") or "VIGENTE"),
+                "url_contrato_pdf": str(it.get("URL_CONTRATO") or f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepContratac?codigo={cui}")
+            })
+
     # Recopilar todos los números de seguimiento válidos (priorizando OBRAS)
     candidate_nrosegs = []
     for it in items:
@@ -985,7 +1040,8 @@ def _fetch_seguimiento_completo(cui: str, avance_f12b: Optional[float] = None) -
         "avance_fisico_seace": ultimo_avance_seace,
         "estado_hito": estado_hito,
         "linea_tiempo": linea_tiempo,
-        "fotos_obra": fotos_obra if (selected_nroseg and selected_nroseg > 0) else []
+        "fotos_obra": fotos_obra if (selected_nroseg and selected_nroseg > 0) else [],
+        "contratos_seace": contratos_seace
     }
 
 
