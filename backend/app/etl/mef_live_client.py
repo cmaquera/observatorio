@@ -357,13 +357,18 @@ def _fetch_det_inv_ssi(cui: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def fetch_geoinvierte_coords(cui: str) -> Optional[Dict[str, Any]]:
+def fetch_geoinvierte_coords(cui: str, departamento: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Consulta el servidor oficial ArcGIS del MEF / MINECON (GeoInvierte):
     cartografia_pip_georef_edicion_lectura para obtener las coordenadas exactas
     georreferenciadas durante la Fase de Formulación y Evaluación.
+    Prioriza la geometría espacial (geometry.x/y) sobre los atributos de texto (X/Y)
+    y corrige automáticamente inversiones de ejes X/Y para evitar saltos al Polo Sur.
     """
+    from app.utils.ubigeo_helper import normalizar_coordenadas_peru
+
     cui_str = str(cui).strip()
+    dpto_target = departamento.strip().upper() if departamento else None
     base_url = "https://ws.mineco.gob.pe/server/rest/services/cartografia_pip_georef_edicion_lectura/MapServer"
     for layer in [0, 1, 2]:
         url = f"{base_url}/{layer}/query?where=COD_UNICO%3D{cui_str}&outFields=X,Y,NOMBRE_LOC,DEPARTAMEN,PROVINCIA,DISTRITO&returnGeometry=true&f=json"
@@ -372,16 +377,34 @@ def fetch_geoinvierte_coords(cui: str) -> Optional[Dict[str, Any]]:
             with urllib.request.urlopen(req, timeout=6.0, context=_SSL_CTX) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 features = data.get("features", [])
-                if features:
-                    feat = features[0]
-                    attrs = feat.get("attributes", {})
-                    geom = feat.get("geometry", {})
-                    x = attrs.get("X") if attrs.get("X") is not None else geom.get("x")
-                    y = attrs.get("Y") if attrs.get("Y") is not None else geom.get("y")
-                    if x is not None and y is not None:
+                if dpto_target and len(features) > 1:
+                    features = sorted(
+                        features,
+                        key=lambda f: 0 if str((f.get("attributes") or {}).get("DEPARTAMEN") or "").strip().upper() == dpto_target else 1
+                    )
+                for feat in features:
+                    attrs = feat.get("attributes") or {}
+                    geom = feat.get("geometry") or {}
+
+                    # 1. Priorizar geometría espacial real del servidor ArcGIS (geom.y = lat, geom.x = lon)
+                    lat, lon = normalizar_coordenadas_peru(geom.get("y"), geom.get("x"))
+
+                    # 2. Si es polilínea (paths) o polígono (rings), extraer vértice representativo
+                    if lat is None or lon is None:
+                        paths = geom.get("paths") or geom.get("rings")
+                        if paths and isinstance(paths, list) and len(paths) > 0 and len(paths[0]) > 0:
+                            pt = paths[0][len(paths[0]) // 2]
+                            if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+                                lat, lon = normalizar_coordenadas_peru(pt[1], pt[0])
+
+                    # 3. Fallback a atributos X/Y (auto-corrigiendo si el MEF invirtió X e Y)
+                    if lat is None or lon is None:
+                        lat, lon = normalizar_coordenadas_peru(attrs.get("Y"), attrs.get("X"))
+
+                    if lat is not None and lon is not None:
                         return {
-                            "latitud": float(y),
-                            "longitud": float(x),
+                            "latitud": round(float(lat), 7),
+                            "longitud": round(float(lon), 7),
                             "localidad": attrs.get("NOMBRE_LOC"),
                             "departamento": attrs.get("DEPARTAMEN"),
                             "provincia": attrs.get("PROVINCIA"),

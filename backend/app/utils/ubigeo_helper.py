@@ -129,7 +129,7 @@ DISTRITO_CENTROIDS = {
     ("CUSCO", "CALCA", "CALCA"): (-13.3331, -71.9542),
     ("CUSCO", "CALCA", "PISAC"): (-13.4225, -71.8481),
 
-    # Tacna
+    # Tacna - Provincia Tacna
     ("TACNA", "TACNA", "CORONEL GREGORIO ALBARRACIN LANCHIPA"): (-18.0514, -70.2789),
     ("TACNA", "TACNA", "TACNA"): (-18.0146, -70.2536),
     ("TACNA", "TACNA", "ALTO DE LA ALIANZA"): (-18.0019, -70.2472),
@@ -141,6 +141,27 @@ DISTRITO_CENTROIDS = {
     ("TACNA", "TACNA", "SAMA"): (-17.8861, -70.5281),
     ("TACNA", "TACNA", "INCLAN"): (-17.7850, -70.4939),
     ("TACNA", "TACNA", "LA YARADA LOS PALOS"): (-18.1722, -70.3683),
+    # Tacna - Provincia Jorge Basadre
+    ("TACNA", "JORGE BASADRE", "LOCUMBA"): (-17.6139, -70.7638),
+    ("TACNA", "JORGE BASADRE", "ILABAYA"): (-17.4228, -70.5128),
+    ("TACNA", "JORGE BASADRE", "ITE"): (-17.8617, -70.9639),
+    # Tacna - Provincia Candarave
+    ("TACNA", "CANDARAVE", "CANDARAVE"): (-17.2678, -70.2494),
+    ("TACNA", "CANDARAVE", "CAIRANI"): (-17.2847, -70.3547),
+    ("TACNA", "CANDARAVE", "CAMILACA"): (-17.2674, -70.3788),
+    ("TACNA", "CANDARAVE", "CURIBAYA"): (-17.3825, -70.3344),
+    ("TACNA", "CANDARAVE", "HUANUARA"): (-17.3134, -70.3211),
+    ("TACNA", "CANDARAVE", "QUILAHUANI"): (-17.3164, -70.2581),
+    # Tacna - Provincia Tarata
+    ("TACNA", "TARATA", "TARATA"): (-17.4744, -70.0328),
+    ("TACNA", "TARATA", "HEROES ALBARRACIN"): (-17.4814, -70.1056),
+    ("TACNA", "TARATA", "ESTIQUE"): (-17.5419, -70.0178),
+    ("TACNA", "TARATA", "ESTIQUE-PAMPA"): (-17.5403, -70.0442),
+    ("TACNA", "TARATA", "ESTIQUE PAMPA"): (-17.5403, -70.0442),
+    ("TACNA", "TARATA", "SITAJARA"): (-17.3769, -70.1342),
+    ("TACNA", "TARATA", "SUSAPAYA"): (-17.3536, -70.1322),
+    ("TACNA", "TARATA", "TARUCACHI"): (-17.5255, -70.0310),
+    ("TACNA", "TARATA", "TICACO"): (-17.4453, -70.0472),
 }
 
 # Diccionario por UBIGEO distrital específico
@@ -148,9 +169,31 @@ UBIGEO_DISTRITAL = {
     "230110": (-18.0514, -70.2789), # Crnl. Gregorio Albarracin Lanchipa
     "230101": (-18.0146, -70.2536), # Tacna
     "230102": (-18.0019, -70.2472), # Alto de la Alianza
+    "230103": (-17.9558, -70.1919), # Calana
     "230104": (-17.9942, -70.2417), # Ciudad Nueva
+    "230105": (-17.7850, -70.4939), # Inclán
+    "230106": (-17.8964, -70.1556), # Pachía
+    "230107": (-17.7767, -69.9542), # Palca
     "230108": (-18.0089, -70.2231), # Pocollay
+    "230109": (-17.8861, -70.5281), # Sama
     "230111": (-18.1722, -70.3683), # La Yarada Los Palos
+    "230201": (-17.2678, -70.2494), # Candarave
+    "230202": (-17.2847, -70.3547), # Cairani
+    "230203": (-17.2674, -70.3788), # Camilaca
+    "230204": (-17.3825, -70.3344), # Curibaya
+    "230205": (-17.3134, -70.3211), # Huanuara
+    "230206": (-17.3164, -70.2581), # Quilahuani
+    "230301": (-17.6139, -70.7638), # Locumba
+    "230302": (-17.4228, -70.5128), # Ilabaya
+    "230303": (-17.8617, -70.9639), # Ite
+    "230401": (-17.4744, -70.0328), # Tarata
+    "230402": (-17.4814, -70.1056), # Héroes Albarracín
+    "230403": (-17.5419, -70.0178), # Estique
+    "230404": (-17.5403, -70.0442), # Estique-Pampa
+    "230405": (-17.3769, -70.1342), # Sitajara
+    "230406": (-17.3536, -70.1322), # Susapaya
+    "230407": (-17.5255, -70.0310), # Tarucachi
+    "230408": (-17.4453, -70.0472), # Ticaco
     "080101": (-13.5170, -71.9785), # Cusco
     "080106": (-13.5350, -71.9820), # Santiago
     "080108": (-13.5255, -71.9560), # Wanchaq
@@ -158,24 +201,58 @@ UBIGEO_DISTRITAL = {
     "080105": (-13.5320, -71.9210), # San Sebastián
 }
 
+
+def es_coordenada_peru_valida(lat, lon) -> bool:
+    """Verifica si (lat, lon) está dentro de los límites continentales del Perú (excluyendo el fallback -9.1899)."""
+    try:
+        if lat is None or lon is None:
+            return False
+        lat_f = float(lat)
+        lon_f = float(lon)
+        if abs(lat_f - (-9.1899)) < 0.0001 and abs(lon_f - (-75.0152)) < 0.0001:
+            return False
+        return -18.5 <= lat_f <= -0.01 and -81.5 <= lon_f <= -68.0
+    except (ValueError, TypeError):
+        return False
+
+
+def normalizar_coordenadas_peru(lat, lon):
+    """
+    Valida y corrige coordenadas para el territorio peruano (-18.5 <= lat <= -0.01, -81.5 <= lon <= -68.0).
+    Si detecta que latitud y longitud vienen invertidas (ej. lat=-70.51, lon=-17.42 como ocurre en
+    algunos registros de GeoInvierte en Tacna), las intercambia automáticamente.
+    Retorna (lat_valida, lon_valida) o (None, None) si son inválidas.
+    """
+    try:
+        if lat is None or lon is None:
+            return None, None
+        lat_f = float(lat)
+        lon_f = float(lon)
+        # Caso 1: Orden correcto (latitud en [-18.5, -0.01], longitud en [-81.5, -68.0])
+        if -18.5 <= lat_f <= -0.01 and -81.5 <= lon_f <= -68.0:
+            return lat_f, lon_f
+        # Caso 2: Orden invertido X/Y (latitud trae la longitud ~ -70 y longitud trae la latitud ~ -17)
+        if -81.5 <= lat_f <= -68.0 and -18.5 <= lon_f <= -0.01:
+            return lon_f, lat_f
+    except (ValueError, TypeError):
+        pass
+    return None, None
+
+
 def resolver_coordenadas(lat, lon, departamento: str, provincia: str, distrito: str, ubigeo: str = None):
     """
-    Retorna (lat, lon) válidas dentro del territorio peruano (-18.5 <= lat <= 0.0, -81.5 <= lon <= -68.0).
-    Si vienen 0.0, None o fuera de rango, busca en cascada:
+    Retorna (lat, lon) válidas dentro del territorio peruano (-18.5 <= lat <= -0.01, -81.5 <= lon <= -68.0).
+    Si vienen invertidas las corrige; si vienen 0.0, None o fuera de rango, busca en cascada:
       1. Catálogo por código UBIGEO exacto (6 dígitos).
       2. Catálogo por Distrito (dpto, prov, dist).
       3. Catálogo por Provincia (dpto, prov).
       4. Catálogo por Departamento (dpto o 2 dígitos ubigeo).
       5. Fallback geográfico de contingencia.
     """
-    try:
-        if lat is not None and lon is not None:
-            lat = float(lat)
-            lon = float(lon)
-            if -18.5 <= lat <= -0.01 and -81.5 <= lon <= -68.0:
-                return lat, lon
-    except (ValueError, TypeError):
-        pass
+    lat_norm, lon_norm = normalizar_coordenadas_peru(lat, lon)
+    if lat_norm is not None and lon_norm is not None:
+        if not (abs(lat_norm - (-9.1899)) < 0.0001 and abs(lon_norm - (-75.0152)) < 0.0001):
+            return lat_norm, lon_norm
 
     # 1. Intentar por código UBIGEO distrital exacto
     if ubigeo:

@@ -9,6 +9,14 @@ const formatMoney = (val) => {
   return `S/ ${val.toLocaleString('es-PE')}`;
 };
 
+const isValidPeruCoord = (lat, lng) =>
+  typeof lat === 'number' &&
+  typeof lng === 'number' &&
+  lat >= -18.5 &&
+  lat <= -0.01 &&
+  lng >= -81.5 &&
+  lng <= -68.0;
+
 // Componente para reenfocar el mapa automáticamente y forzar redibujado de tiles al abrir
 function MapController({ points, center }) {
   const map = useMap();
@@ -23,11 +31,13 @@ function MapController({ points, center }) {
   }, [map]);
 
   useEffect(() => {
-    if (center) {
+    if (center && isValidPeruCoord(center[0], center[1])) {
       map.flyTo(center, 9, { duration: 1.2 });
     } else if (points && points.length > 0) {
-      const first = points[0];
-      map.flyTo([first.lat, first.lng], 9, { duration: 1.2 });
+      const validPoint = points.find((p) => isValidPeruCoord(p.lat, p.lng));
+      if (validPoint) {
+        map.flyTo([validPoint.lat, validPoint.lng], 9, { duration: 1.2 });
+      }
     }
   }, [points, center, map]);
   return null;
@@ -137,7 +147,7 @@ export default function MapView({ filters, onSelectProject }) {
             maxZoom={19}
           />
 
-          <MapController points={points} center={points.length > 0 ? [points[0].lat, points[0].lng] : null} />
+          <MapController points={points} />
 
           {points.map((p) => {
             const color = getColor(p.nivel_alerta);

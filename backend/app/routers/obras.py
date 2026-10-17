@@ -144,14 +144,19 @@ def get_map_points(
 
     points = query.limit(limit).all()
 
-    return [
-        {
+    from app.utils.ubigeo_helper import es_coordenada_peru_valida, resolver_coordenadas
+    result_points = []
+    for p in points:
+        lat_p, lng_p = p.latitud, p.longitud
+        if not es_coordenada_peru_valida(lat_p, lng_p):
+            lat_p, lng_p = resolver_coordenadas(lat_p, lng_p, p.departamento or "", p.provincia or "", p.distrito or "")
+        result_points.append({
             "cui": p.cui,
             "nombre": p.nombre,
             "sector": p.sector or "OTRO",
             "entidad": p.entidad or "Entidad Pública",
-            "lat": p.latitud,
-            "lng": p.longitud,
+            "lat": lat_p,
+            "lng": lng_p,
             "costo": p.costo_actualizado,
             "avance_fisico": p.avance_fisico,
             "avance_financiero": p.avance_financiero,
@@ -161,9 +166,8 @@ def get_map_points(
             "dist": p.distrito,
             "nivel_alerta": p.nivel_alerta or "NORMAL",
             "score": p.score_criticidad or 0.0
-        }
-        for p in points
-    ]
+        })
+    return result_points
 
 
 @router.get("/archivos/mef")
@@ -247,13 +251,20 @@ def get_obra_detalle(cui: str, db: Session = Depends(get_db)):
                     f"y se encuentra en etapa de liquidación final sin riesgo financiero adverso."
                 )
 
+            from app.utils.ubigeo_helper import es_coordenada_peru_valida, normalizar_coordenadas_peru, resolver_coordenadas
             if mef_data.get("ubicacion_oficial"):
                 geo_info = mef_data["ubicacion_oficial"]
-                if geo_info.get("latitud") and geo_info.get("longitud"):
-                    # Solo actualizar si las coordenadas actuales están en 0.0 o vacías
-                    if not out.latitud or out.latitud == 0.0 or not out.longitud or out.longitud == 0.0:
-                        out.latitud = geo_info["latitud"]
-                        out.longitud = geo_info["longitud"]
+                lat_geo, lon_geo = normalizar_coordenadas_peru(geo_info.get("latitud"), geo_info.get("longitud"))
+                if lat_geo is not None and lon_geo is not None:
+                    if not es_coordenada_peru_valida(out.latitud, out.longitud):
+                        out.latitud = lat_geo
+                        out.longitud = lon_geo
+            if not es_coordenada_peru_valida(out.latitud, out.longitud):
+                out.latitud, out.longitud = resolver_coordenadas(
+                    out.latitud, out.longitud,
+                    obra.departamento or "", obra.provincia or "", obra.distrito or "",
+                    ubigeo=obra.ubigeo
+                )
 
             if mef_data.get("linea_tiempo"):
                 out.linea_tiempo = mef_data["linea_tiempo"]

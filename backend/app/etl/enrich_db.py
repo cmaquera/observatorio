@@ -98,7 +98,11 @@ def aplicar_enriquecimiento(
                 (Inversion.latitud == 0.0) |
                 (Inversion.longitud == None) |
                 (Inversion.longitud == 0.0) |
-                (Inversion.latitud == -9.1899)
+                (Inversion.latitud == -9.1899) |
+                (Inversion.latitud < -18.5) |
+                (Inversion.latitud > -0.01) |
+                (Inversion.longitud < -81.5) |
+                (Inversion.longitud > -68.0)
             )
         elif target_mode == "all":
             pass
@@ -195,25 +199,43 @@ def aplicar_enriquecimiento(
                                     url_contrato_pdf=c_item["url_contrato_pdf"]
                                 ))
 
-                        # SOLO actualizar coordenadas si la obra en base de datos está en 0.0 o vacía
-                        coords_en_cero = (
-                            not inv.latitud or inv.latitud == 0.0 or
-                            not inv.longitud or inv.longitud == 0.0 or
-                            inv.latitud == -9.1899
+                        from app.utils.ubigeo_helper import (
+                            es_coordenada_peru_valida,
+                            normalizar_coordenadas_peru,
+                            resolver_coordenadas
                         )
-                        if coords_en_cero:
-                            geo_oficial = mef_live.get("ubicacion_oficial")
-                            if geo_oficial and geo_oficial.get("latitud") and geo_oficial.get("longitud"):
-                                inv.latitud = geo_oficial["latitud"]
-                                inv.longitud = geo_oficial["longitud"]
+                        coords_invalidas = not es_coordenada_peru_valida(inv.latitud, inv.longitud)
+                        geo_oficial = mef_live.get("ubicacion_oficial")
+                        if (
+                            geo_oficial
+                            and inv.departamento
+                            and str(geo_oficial.get("departamento") or "").strip().upper() != inv.departamento.strip().upper()
+                        ):
+                            from app.etl.mef_live_client import fetch_geoinvierte_coords
+                            geo_regional = fetch_geoinvierte_coords(cui, departamento=inv.departamento)
+                            if geo_regional:
+                                geo_oficial = geo_regional
+
+                        lat_geo, lon_geo = (
+                            normalizar_coordenadas_peru(geo_oficial.get("latitud"), geo_oficial.get("longitud"))
+                            if geo_oficial else (None, None)
+                        )
+
+                        if lat_geo is not None and lon_geo is not None:
+                            if coords_invalidas or target_mode == "geo_missing":
+                                inv.latitud = lat_geo
+                                inv.longitud = lon_geo
                                 print(f"[📍 GEO] CUI {cui}: Coordenadas fijadas desde GeoInvierte -> ({inv.latitud}, {inv.longitud})")
-                            else:
-                                from app.utils.ubigeo_helper import resolver_coordenadas
-                                lat_ubig, lon_ubig = resolver_coordenadas(None, None, inv.departamento, inv.provincia, inv.distrito, ubigeo=inv.ubigeo)
-                                if lat_ubig and lon_ubig and (lat_ubig != 0.0 or lon_ubig != 0.0):
-                                    inv.latitud = lat_ubig
-                                    inv.longitud = lon_ubig
-                                    print(f"[📍 GEO] CUI {cui}: Coordenadas fijadas desde Catálogo Ubigeo -> ({inv.latitud}, {inv.longitud})")
+                        elif coords_invalidas:
+                            lat_ubig, lon_ubig = resolver_coordenadas(
+                                inv.latitud, inv.longitud,
+                                inv.departamento, inv.provincia, inv.distrito,
+                                ubigeo=inv.ubigeo
+                            )
+                            if lat_ubig and lon_ubig:
+                                inv.latitud = lat_ubig
+                                inv.longitud = lon_ubig
+                                print(f"[📍 GEO] CUI {cui}: Coordenadas corregidas desde Catálogo Ubigeo -> ({inv.latitud}, {inv.longitud})")
 
                         ev.score_criticidad = eval_data["score_criticidad"]
                         ev.nivel_alerta = eval_data["nivel_alerta"]
