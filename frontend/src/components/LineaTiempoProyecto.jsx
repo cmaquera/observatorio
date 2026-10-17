@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import {
   Calendar, CheckCircle2, AlertTriangle, Clock, ExternalLink,
   ChevronDown, ChevronUp, AlertCircle, ShieldAlert, Sparkles,
-  TrendingUp, Milestone, History, ArrowRight, Layers, Check, Info
+  TrendingUp, Milestone, History, ArrowRight, Layers, Check, Info,
+  FileText, Camera
 } from 'lucide-react';
 
 const formatMoney = (val) => {
@@ -200,6 +201,34 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Último Periodo Reportado</span>
                 <span className="text-sm font-bold text-slate-800 dark:text-white">{ultimoPunto.periodo}</span>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">Reporte mensual de supervisión</span>
+                {(ultimoPunto.url_pdf || ultimoPunto.url_foto) && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    {ultimoPunto.url_pdf && (
+                      <a
+                        href={ultimoPunto.url_pdf}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-950/70 dark:hover:bg-blue-900 dark:text-blue-300 dark:border-blue-800 text-[10px] font-semibold transition-colors"
+                        title="Abrir documento PDF de avance físico / valorización"
+                      >
+                        <FileText className="w-3 h-3" />
+                        <span>Valoriz. PDF</span>
+                      </a>
+                    )}
+                    {ultimoPunto.url_foto && (
+                      <a
+                        href={ultimoPunto.url_foto}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:hover:bg-emerald-900 dark:text-emerald-300 dark:border-emerald-800 text-[10px] font-semibold transition-colors"
+                        title="Abrir fotografía oficial de avance físico"
+                      >
+                        <Camera className="w-3 h-3" />
+                        <span>Foto Obra</span>
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -244,6 +273,7 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                       <th className="py-2 px-3 text-right">Real (%)</th>
                       <th className="py-2 px-3 text-right">Monto Real (S/)</th>
                       <th className="py-2 px-3">Situación Reportada</th>
+                      <th className="py-2 px-3 text-center">Sustento</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-mono text-[11px] bg-white dark:bg-transparent">
@@ -257,6 +287,37 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                           <span className={pt.situacion?.includes('ATRASADA') ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-slate-600 dark:text-slate-300'}>
                             {pt.situacion}
                           </span>
+                        </td>
+                        <td className="py-2 px-3 font-sans text-[10px]">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {pt.url_pdf && (
+                              <a
+                                href={pt.url_pdf}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-950/70 dark:text-blue-300 dark:border-blue-800 font-semibold"
+                                title="Ver documento PDF de avance físico"
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span>PDF</span>
+                              </a>
+                            )}
+                            {pt.url_foto && (
+                              <a
+                                href={pt.url_foto}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800 font-semibold"
+                                title="Ver fotografía de obra"
+                              >
+                                <Camera className="w-3 h-3" />
+                                <span>Foto</span>
+                              </a>
+                            )}
+                            {!pt.url_pdf && !pt.url_foto && (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

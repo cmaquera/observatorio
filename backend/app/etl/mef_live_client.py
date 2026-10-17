@@ -5,6 +5,7 @@ con caché en memoria para máxima velocidad y tolerancia a fallos.
 """
 
 import os
+import socket
 import urllib.request
 import urllib.parse
 import ssl
@@ -15,6 +16,28 @@ import datetime
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, Optional, List, Tuple
+
+
+def _prefer_ipv4() -> None:
+    """
+    Fuerza preferencia por IPv4 en resolución DNS para evitar bloqueos o timeouts
+    en contenedores Docker sin enrutamiento IPv6 cuando ofi5.mef.gob.pe publica registros AAAA.
+    """
+    orig_getaddrinfo = getattr(socket, "_orig_getaddrinfo", None)
+    if orig_getaddrinfo is not None:
+        return
+    orig_getaddrinfo = socket.getaddrinfo
+    socket._orig_getaddrinfo = orig_getaddrinfo  # type: ignore[attr-defined]
+
+    def _ipv4_first_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        res = orig_getaddrinfo(host, port, family, type, proto, flags)
+        ipv4 = [r for r in res if r[0] == socket.AF_INET]
+        return ipv4 if ipv4 else res
+
+    socket.getaddrinfo = _ipv4_first_getaddrinfo
+
+
+_prefer_ipv4()
 
 # Caché en memoria con TTL de 1 hora y límite de tamaño para evitar fugas de memoria
 _CACHE: Dict[str, Dict[str, Any]] = {}
@@ -182,7 +205,7 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
             result["linea_tiempo"] = seguim_data.get("linea_tiempo")
             if result.get("linea_tiempo") and hist_situ:
                 result["linea_tiempo"]["historial_situacion"] = hist_situ
-            result["fotos_obra"] = seguim_data.get("fotos_obra", [])
+            result["fotos_obra"] = list(seguim_data.get("fotos_obra", []))
             result["avance_fisico_seace"] = seguim_data.get("avance_fisico_seace")
             result["estado_hito_seace"] = seguim_data.get("estado_hito")
             result["contratos_seace"] = seguim_data.get("contratos_seace", [])
@@ -190,6 +213,60 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
             if seguim_data.get("nroseg"):
                 url_rep_ejec = f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepEjecFisObra?codigo={cui}&nroseg={seguim_data.get('nroseg')}"
                 result["direct_urls"]["url_ejecucion_fisica_obra"] = url_rep_ejec
+
+        # Complementar fotos_obra con archivos declarados directamente en Formato 12-B (RUTA_FOTO*, FOTO_SITUAC, DOC_SUSTENTO_HITO_EF)
+        if f12b_data:
+            existing_files = set()
+            for ft in result["fotos_obra"]:
+                if ft.get("archivo_foto"):
+                    existing_files.add(ft["archivo_foto"])
+                if ft.get("archivo_pdf"):
+                    existing_files.add(ft["archivo_pdf"])
+
+            nroseg_f12 = int(result.get("nroseg") or 0)
+            av_f12 = round(float(f12b_data.get("PORC_AVANCE_FIS") or f12b_data.get("PORC_AVANCE_EJEC") or 0.0), 2)
+            mto_f12 = round(float(f12b_data.get("DEV_ACUM_INV") or 0.0), 2)
+            situ_f12 = (f12b_data.get("ULT_ESTADO_SITUACIONAL") or "").strip() or None
+
+            f12_photo_pairs = [
+                ("RUTA_FOTO", "PER_FOTO", "Registro fotográfico de avance físico en Formato 12-B"),
+                ("RUTA_FOTO_2", "PER_FOTO_2", "Registro fotográfico complementario en Formato 12-B"),
+                ("RUTA_FOTO_3", "PER_FOTO_3", "Registro fotográfico adicional en Formato 12-B"),
+                ("RUTA_FOTO_4", "PER_FOTO_4", "Registro fotográfico adicional en Formato 12-B"),
+                ("FOTO_SITUAC", "FECHA_ULT_ACT_F12B", "Documento de sustento situacional en Formato 12-B"),
+                ("DOC_SUSTENTO_HITO_EF", "FEC_CUMPLIMIENTO_HITO_EF", "Documento de sustento de ejecución física en Formato 12-B"),
+            ]
+            for ruta_key, per_key, default_desc in f12_photo_pairs:
+                raw_ruta = f12b_data.get(ruta_key)
+                if not raw_ruta or str(raw_ruta).strip() == "No se encontraron fotos.":
+                    continue
+                m_arch = re.search(r"idArchivo=([A-Za-z0-9._-]+)", str(raw_ruta))
+                arch_name = m_arch.group(1) if m_arch else None
+                if not arch_name or arch_name in existing_files:
+                    continue
+                existing_files.add(arch_name)
+                raw_per = str(f12b_data.get(per_key) or "").strip()
+                if not raw_per or raw_per == "No se encontraron fotos.":
+                    raw_per = _parse_dotnet_date(f12b_data.get("FECHA_ULT_ACT_F12B")) or "F12-B"
+                elif "/Date(" in raw_per:
+                    raw_per = _parse_dotnet_date(raw_per) or "F12-B"
+                is_pdf_only = arch_name.lower().endswith(".pdf") and ruta_key in ("FOTO_SITUAC", "DOC_SUSTENTO_HITO_EF")
+                file_url = f"/api/obras/archivos/mef?cui={cui}&nroseg={nroseg_f12}&archivo={arch_name}"
+                result["fotos_obra"].append({
+                    "periodo": raw_per[:7] if re.match(r"^\d{4}-\d{2}", raw_per) else raw_per,
+                    "periodo_raw": raw_per,
+                    "archivo_foto": None if is_pdf_only else arch_name,
+                    "url_foto": None if is_pdf_only else file_url,
+                    "archivo_pdf": arch_name if is_pdf_only else None,
+                    "url_pdf": file_url if is_pdf_only else None,
+                    "avance_real": av_f12,
+                    "avance_programado": av_f12,
+                    "monto_real": mto_f12,
+                    "descripcion": situ_f12 or default_desc,
+                    "situacion": "FORMATO 12-B"
+                })
+            if result.get("linea_tiempo") and result["fotos_obra"]:
+                result["linea_tiempo"]["fotos_obra"] = result["fotos_obra"]
 
         if comp_items and len(comp_items) > 0:
             result["disponible"] = True
@@ -252,12 +329,14 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
     return result
 
 
-def _get_mef_download_token(cui: str, nroseg: int) -> Tuple[Optional[str], Optional[str]]:
+def _get_mef_download_token(cui: str, nroseg: int, force_refresh: bool = False) -> Tuple[Optional[str], Optional[str]]:
     """Obtiene o reutiliza el token de sesión confidencial y cookies para descargar archivos del MEF."""
     now = time.time()
     cache_key = f"{cui}_{nroseg}"
     with _CACHE_LOCK:
-        if cache_key in _SESSION_TOKEN_CACHE:
+        if force_refresh:
+            _SESSION_TOKEN_CACHE.pop(cache_key, None)
+        elif cache_key in _SESSION_TOKEN_CACHE:
             token, cookie_str, ts = _SESSION_TOKEN_CACHE[cache_key]
             if now - ts < 1800:  # 30 minutos de validez
                 return token, cookie_str
@@ -266,31 +345,36 @@ def _get_mef_download_token(cui: str, nroseg: int) -> Tuple[Optional[str], Optio
     if not re.fullmatch(r"\d{4,12}", clean_cui):
         return None, None
 
-    html_url = f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepEjecFisObra?codigo={clean_cui}&nroseg={int(nroseg)}"
-    req = urllib.request.Request(html_url, headers=_COMMON_HEADERS)
-    try:
-        with urllib.request.urlopen(req, timeout=7, context=_SSL_CTX) as resp:
-            html = resp.read().decode('utf-8', errors='ignore')
-            cookies = resp.headers.get_all('Set-Cookie') or []
-            cookie_str = '; '.join([c.split(';')[0] for c in cookies])
-            m = re.search(r'strTokenConfidencial\s*=\s*"([^"]+)"', html)
-            if m:
-                token = m.group(1)
-                with _CACHE_LOCK:
-                    if len(_SESSION_TOKEN_CACHE) >= MAX_CACHE_ENTRIES:
-                        oldest_k = min(_SESSION_TOKEN_CACHE, key=lambda k: _SESSION_TOKEN_CACHE[k][2])
-                        _SESSION_TOKEN_CACHE.pop(oldest_k, None)
-                    _SESSION_TOKEN_CACHE[cache_key] = (token, cookie_str, now)
-                return token, cookie_str
-    except Exception:
-        pass
+    candidate_urls = []
+    if int(nroseg) > 0:
+        candidate_urls.append(f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepEjecFisObra?codigo={clean_cui}&nroseg={int(nroseg)}")
+    candidate_urls.append(f"https://ofi5.mef.gob.pe/inviertews/Repseguim/ResumF12B?codigo={clean_cui}")
+
+    for html_url in candidate_urls:
+        req = urllib.request.Request(html_url, headers=_COMMON_HEADERS)
+        try:
+            with urllib.request.urlopen(req, timeout=8, context=_SSL_CTX) as resp:
+                html = resp.read().decode('utf-8', errors='ignore')
+                cookies = resp.headers.get_all('Set-Cookie') or []
+                cookie_str = '; '.join([c.split(';')[0] for c in cookies])
+                m = re.search(r'strTokenConfidencial\s*=\s*"([^"]+)"', html)
+                if m:
+                    token = m.group(1).strip()
+                    with _CACHE_LOCK:
+                        if len(_SESSION_TOKEN_CACHE) >= MAX_CACHE_ENTRIES:
+                            oldest_k = min(_SESSION_TOKEN_CACHE, key=lambda k: _SESSION_TOKEN_CACHE[k][2])
+                            _SESSION_TOKEN_CACHE.pop(oldest_k, None)
+                        _SESSION_TOKEN_CACHE[cache_key] = (token, cookie_str, now)
+                    return token, cookie_str
+        except Exception:
+            continue
     return None, None
 
 
 def download_mef_archivo(cui: str, nroseg: int, archivo_id: str) -> Tuple[Optional[bytes], str]:
     """
     Descarga con reintentos y caché persistente en disco los archivos oficiales adjuntos del MEF
-    (fotos de obra en JPG y resúmenes de valorización física en PDF).
+    (fotos de obra en JPG/PNG y resúmenes de valorización física en PDF).
     """
     clean_cui = str(cui).strip()
     safe_name = re.sub(r"[^A-Za-z0-9._-]", "", os.path.basename(archivo_id.strip()))
@@ -299,36 +383,54 @@ def download_mef_archivo(cui: str, nroseg: int, archivo_id: str) -> Tuple[Option
 
     cache_path = os.path.join(_ATTACHMENT_CACHE_DIR, safe_name)
     ext = os.path.splitext(safe_name)[1].lower()
-    default_mime = 'image/jpeg' if ext in ('.jpg', '.jpeg') else ('application/pdf' if ext == '.pdf' else 'application/octet-stream')
+    if ext in ('.jpg', '.jpeg'):
+        default_mime = 'image/jpeg'
+    elif ext == '.png':
+        default_mime = 'image/png'
+    elif ext == '.pdf':
+        default_mime = 'application/pdf'
+    else:
+        default_mime = 'application/octet-stream'
 
     if os.path.exists(cache_path) and os.path.getsize(cache_path) > 500:
         with open(cache_path, 'rb') as f:
             return f.read(), default_mime
 
-    token, cookie_str = _get_mef_download_token(clean_cui, int(nroseg))
-    if not token:
-        return None, default_mime
+    for attempt in range(2):
+        token, cookie_str = _get_mef_download_token(clean_cui, int(nroseg), force_refresh=(attempt > 0))
+        if not token:
+            continue
 
-    query_params = urllib.parse.urlencode({"idArchivo": safe_name, "token": token})
-    dl_url = f"https://ofi5.mef.gob.pe/invierte/general/downloadArchivoPublico?{query_params}"
-    headers = dict(_COMMON_HEADERS)
-    headers['Referer'] = f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepEjecFisObra?codigo={clean_cui}&nroseg={int(nroseg)}"
-    if cookie_str:
-        headers['Cookie'] = cookie_str
+        # Importante: strTokenConfidencial en el HTML del MEF ya viene URL-encoded (%2F, %2B, %3D).
+        # Si se pasa por urllib.parse.urlencode directamente, se codifica doblemente (%253D) y el MEF responde "Acceso no autorizado".
+        encoded_token = token if "%" in token else urllib.parse.quote(token, safe="")
+        dl_url = f"https://ofi5.mef.gob.pe/invierte/general/downloadArchivoPublico?idArchivo={urllib.parse.quote(safe_name)}&token={encoded_token}"
+        headers = dict(_COMMON_HEADERS)
+        if int(nroseg) > 0:
+            headers['Referer'] = f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepEjecFisObra?codigo={clean_cui}&nroseg={int(nroseg)}"
+        else:
+            headers['Referer'] = f"https://ofi5.mef.gob.pe/inviertews/Repseguim/ResumF12B?codigo={clean_cui}"
+        if cookie_str:
+            headers['Cookie'] = cookie_str
 
-    req = urllib.request.Request(dl_url, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
-            data = resp.read()
-            if len(data) > 400 and not data.startswith(b'"Acceso'):
-                with open(cache_path, 'wb') as f:
-                    f.write(data)
-                return data, default_mime
-            # Si el token expiró, limpiar cache y permitir un nuevo intento
-            with _CACHE_LOCK:
-                _SESSION_TOKEN_CACHE.pop(f"{clean_cui}_{int(nroseg)}", None)
-    except Exception:
-        pass
+        req = urllib.request.Request(dl_url, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
+                data = resp.read()
+                if (
+                    len(data) > 400
+                    and not data.startswith(b'"Acceso')
+                    and not data.startswith(b'<!DOCTYPE')
+                    and not data.startswith(b'<html')
+                ):
+                    with open(cache_path, 'wb') as f:
+                        f.write(data)
+                    return data, default_mime
+        except Exception:
+            pass
+
+        with _CACHE_LOCK:
+            _SESSION_TOKEN_CACHE.pop(f"{clean_cui}_{int(nroseg)}", None)
 
     return None, default_mime
 
@@ -795,7 +897,7 @@ def _fetch_seguimiento_completo(cui: str, avance_f12b: Optional[float] = None) -
     Si existe, obtiene hitos (HIT), curva física mensual (FIS) y cronogramas (CRON).
     """
     proy_se_url = "https://ofi5.mef.gob.pe/inviertews/DashboardSeace/verListProySE"
-    items = _post_mef_json(proy_se_url, {"codigo": cui}, timeout=3.5)
+    items = _post_mef_json(proy_se_url, {"codigo": cui}, timeout=6.0)
     if not items or not isinstance(items, list):
         return None
 
@@ -831,43 +933,53 @@ def _fetch_seguimiento_completo(cui: str, avance_f12b: Optional[float] = None) -
                 "url_contrato_pdf": str(it.get("URL_CONTRATO") or f"https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepContratac?codigo={cui}")
             })
 
-    # Recopilar todos los números de seguimiento válidos (priorizando OBRAS)
-    candidate_nrosegs = []
+    # Recopilar todos los números de seguimiento válidos sin duplicados (priorizando OBRAS)
+    seen_ns: Dict[int, bool] = {}
     for it in items:
         ns = it.get("NUM_SEGUIM")
         if ns and int(ns) > 0:
-            candidate_nrosegs.append((int(ns), it.get("DES_OBJETO") == "OBRAS"))
-    
+            ns_int = int(ns)
+            es_obra = (it.get("DES_OBJETO") == "OBRAS")
+            seen_ns[ns_int] = seen_ns.get(ns_int, False) or es_obra
+
     # Ordenar: primero OBRAS, y luego número de seguimiento más alto (los más recientes suelen tener la ejecución activa)
-    candidate_nrosegs.sort(key=lambda x: (1 if x[1] else 0, x[0]), reverse=True)
+    candidate_nrosegs = sorted(seen_ns.items(), key=lambda x: (1 if x[1] else 0, x[0]), reverse=True)
 
     selected_nroseg = None
     hitos_raw = []
     fis_raw = []
     cron_raw = []
+    all_fis_with_ns: List[Tuple[int, Dict[str, Any]]] = []
 
-    for ns, _ in candidate_nrosegs:
+    for ns, _ in candidate_nrosegs[:4]:
         temp_fis = _post_mef_json(
             "https://ofi5.mef.gob.pe/inviertews/DashboardSeace/verListAvanFisico",
             {"codigo": cui, "n_seg": ns, "tipo": "FIS"},
-            timeout=3.0
+            timeout=5.5
         ) or []
         temp_hit = _post_mef_json(
             "https://ofi5.mef.gob.pe/inviertews/DashboardSeace/verListHitoSE",
             {"codigo": cui, "n_seg": ns, "tipo": "HIT"},
-            timeout=3.0
+            timeout=5.5
         ) or []
-        
-        if temp_fis or temp_hit:
+
+        if isinstance(temp_fis, list):
+            for f_it in temp_fis:
+                all_fis_with_ns.append((ns, f_it))
+
+        if (temp_fis or temp_hit) and (selected_nroseg is None or (not fis_raw and temp_fis)):
             selected_nroseg = ns
-            fis_raw = temp_fis
-            hitos_raw = temp_hit
+            if temp_fis:
+                fis_raw = temp_fis
+            if temp_hit and not hitos_raw:
+                hitos_raw = temp_hit
             cron_raw = _post_mef_json(
                 "https://ofi5.mef.gob.pe/inviertews/DashboardSeace/verListAvanFisico",
                 {"codigo": cui, "n_seg": ns, "tipo": "CRON"},
-                timeout=3.0
+                timeout=5.0
             ) or []
-            break
+            if fis_raw and any(it.get("URL_ARCH_AMPLIAC") or it.get("URL_ARCH_AVANCE") for it in fis_raw):
+                break
     linea_tiempo: Optional[Dict[str, Any]] = None
     ultimo_avance_seace = None
 
@@ -975,7 +1087,7 @@ def _fetch_seguimiento_completo(cui: str, avance_f12b: Optional[float] = None) -
             des_riesgo = item.get("DES_RIESGO")
             obs_riesgo = item.get("OBS_RIESGO")
             mitigacion = item.get("OBS_MITIGACION_RIESGO")
-            comentario = item.get("DES_COMENT")
+            comentario = (item.get("DES_COMENT") or "").strip() or None
 
             arch_foto = item.get("URL_ARCH_AMPLIAC")
             arch_pdf = item.get("URL_ARCH_AVANCE")
@@ -1009,21 +1121,27 @@ def _fetch_seguimiento_completo(cui: str, avance_f12b: Optional[float] = None) -
 
         # Extracción de fotos en terreno y resúmenes de valorización (PDF)
         fotos_obra = []
-        for item in fis_raw:
-            arch_foto = item.get("URL_ARCH_AMPLIAC")
-            arch_pdf = item.get("URL_ARCH_AVANCE")
+        seen_photo_keys = set()
+        source_fis = all_fis_with_ns if all_fis_with_ns else [(selected_nroseg, it) for it in fis_raw]
+        for item_ns, item in source_fis:
+            arch_foto = (item.get("URL_ARCH_AMPLIAC") or "").strip() or None
+            arch_pdf = (item.get("URL_ARCH_AVANCE") or "").strip() or None
             if arch_foto or arch_pdf:
+                dedup_k = (arch_foto, arch_pdf, item.get("PERIODO"))
+                if dedup_k in seen_photo_keys:
+                    continue
+                seen_photo_keys.add(dedup_k)
                 per_val = item.get("PERIODO")
                 per_str = str(per_val) if per_val else ""
                 mes_anio = f"{per_str[:4]}-{per_str[4:6]}" if len(per_str) == 6 else per_str
-                com = item.get("DES_COMENT") or item.get("DES_ACCIONES")
+                com = (item.get("DES_COMENT") or item.get("DES_ACCIONES") or "").strip() or None
                 fotos_obra.append({
                     "periodo": mes_anio,
                     "periodo_raw": per_val,
                     "archivo_foto": arch_foto,
-                    "url_foto": f"/api/obras/archivos/mef?cui={cui}&nroseg={selected_nroseg}&archivo={arch_foto}" if arch_foto else None,
+                    "url_foto": f"/api/obras/archivos/mef?cui={cui}&nroseg={item_ns}&archivo={arch_foto}" if arch_foto else None,
                     "archivo_pdf": arch_pdf,
-                    "url_pdf": f"/api/obras/archivos/mef?cui={cui}&nroseg={selected_nroseg}&archivo={arch_pdf}" if arch_pdf else None,
+                    "url_pdf": f"/api/obras/archivos/mef?cui={cui}&nroseg={item_ns}&archivo={arch_pdf}" if arch_pdf else None,
                     "avance_real": round(float(item.get("POR_AVAN_REAL") or 0.0), 2),
                     "avance_programado": round(float(item.get("POR_AVAN_PROG") or 0.0), 2),
                     "monto_real": round(float(item.get("MTO_AVAN_REAL") or 0.0), 2),

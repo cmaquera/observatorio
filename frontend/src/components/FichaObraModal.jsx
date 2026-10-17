@@ -464,7 +464,7 @@ export default function FichaObraModal({ cui, onClose }) {
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {fotosObra.slice(0, 3).map((ft, idx) => {
-                          const isPdf = ft.archivo_foto?.toLowerCase().endsWith('.pdf') || ft.url_foto?.toLowerCase().includes('.pdf');
+                          const isPdf = ft.archivo_foto?.toLowerCase().endsWith('.pdf') || ft.url_foto?.toLowerCase().includes('.pdf') || (!ft.url_foto && !!ft.url_pdf);
                           return (
                             <div
                               key={idx}
@@ -484,7 +484,7 @@ export default function FichaObraModal({ cui, onClose }) {
                                   <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 my-auto">
                                     <FileText className="w-6 h-6 text-purple-500 dark:text-purple-400 shrink-0" />
                                     <div className="text-[11px] leading-tight line-clamp-2">
-                                      {ft.descripcion || 'Panel fotográfico de supervisión'}
+                                      {ft.descripcion || 'Documento oficial de valorización y avance físico'}
                                     </div>
                                   </div>
                                   <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100 dark:border-slate-800/80">
@@ -505,9 +505,16 @@ export default function FichaObraModal({ cui, onClose }) {
                                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 absolute inset-0"
                                   />
                                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent flex items-end justify-between p-2.5">
-                                    <span className="text-[11px] font-mono font-bold text-white bg-slate-950/80 px-2 py-0.5 rounded backdrop-blur-sm">
-                                      {ft.periodo}
-                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] font-mono font-bold text-white bg-slate-950/80 px-2 py-0.5 rounded backdrop-blur-sm">
+                                        {ft.periodo}
+                                      </span>
+                                      {ft.url_pdf && (
+                                        <span className="text-[10px] font-bold text-blue-200 bg-blue-950/90 px-1.5 py-0.5 rounded border border-blue-700 backdrop-blur-sm">
+                                          + PDF
+                                        </span>
+                                      )}
+                                    </div>
                                     <span className="text-[11px] font-bold text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800 backdrop-blur-sm">
                                       {ft.avance_real}% físico
                                     </span>

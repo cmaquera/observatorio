@@ -96,12 +96,13 @@ export default function GaleriaFotosObra({ fotos = [], cui }) {
         )}
       </div>
 
-      {/* Grid de Fotografías */}
+      {/* Grid de Fotografías y Documentos de Avance Físico */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {fotosFiltradas.map((foto, idx) => {
           const isFotoPdf = foto.archivo_foto?.toLowerCase().endsWith('.pdf') || foto.url_foto?.toLowerCase().includes('.pdf');
           const hasImage = !!foto.url_foto && !isFotoPdf;
           const hasPdf = !!foto.url_pdf;
+          const isOnlyPdf = !hasImage && !isFotoPdf && hasPdf;
 
           return (
             <div
@@ -110,20 +111,20 @@ export default function GaleriaFotosObra({ fotos = [], cui }) {
             >
               {/* Contenedor de Imagen o Documento PDF */}
               <div
-                onClick={() => (hasImage || isFotoPdf) && setLightboxIndex(idx)}
-                className={`relative aspect-[16/10] bg-slate-100 dark:bg-slate-900 overflow-hidden ${(hasImage || isFotoPdf) ? 'cursor-pointer' : ''}`}
+                onClick={() => (hasImage || isFotoPdf || isOnlyPdf) && setLightboxIndex(idx)}
+                className={`relative aspect-[16/10] bg-slate-100 dark:bg-slate-900 overflow-hidden ${(hasImage || isFotoPdf || isOnlyPdf) ? 'cursor-pointer' : ''}`}
               >
-                {isFotoPdf ? (
+                {(isFotoPdf || isOnlyPdf) ? (
                   <div className="w-full h-full flex flex-col justify-center items-center p-4 bg-gradient-to-br from-purple-50 via-slate-50 to-purple-100/40 dark:from-slate-900 dark:via-slate-950 dark:to-purple-950/40 text-center space-y-1.5 group-hover:from-purple-100 dark:group-hover:from-slate-800 transition-all">
                     <div className="w-11 h-11 rounded-2xl bg-purple-100 dark:bg-purple-900/50 border border-purple-300 dark:border-purple-600/60 flex items-center justify-center text-purple-700 dark:text-purple-300 shadow-xs group-hover:scale-105 transition-transform">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
                       <span className="text-xs font-bold text-slate-900 dark:text-white block">
-                        Panel Fotográfico Oficial
+                        {isOnlyPdf ? 'Informe de Avance Físico (PDF)' : 'Panel Fotográfico Oficial'}
                       </span>
                       <span className="text-[10px] text-purple-700 dark:text-purple-300 block">
-                        Documento PDF con fotografías de obra
+                        {isOnlyPdf ? 'Documento oficial de valorización mensual' : 'Documento PDF con fotografías de obra'}
                       </span>
                     </div>
                     <span className="text-[10px] text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900/90 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
@@ -226,8 +227,8 @@ export default function GaleriaFotosObra({ fotos = [], cui }) {
                       href={foto.url_pdf}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-950/70 dark:hover:bg-blue-900/70 dark:text-blue-300 text-xs font-semibold dark:border-blue-800/80 transition-colors shadow-xs"
-                      title="Ver resumen oficial de valorización en PDF"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-950/70 dark:hover:bg-blue-900/70 dark:text-blue-300 text-xs font-semibold dark:border-blue-800/80 transition-colors shadow-xs"
+                      title="Abrir o descargar el documento oficial de avance físico / valorización en PDF"
                     >
                       <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                       <span>Valoriz. PDF</span>
@@ -305,15 +306,15 @@ export default function GaleriaFotosObra({ fotos = [], cui }) {
             )}
 
             {/* Imagen Principal o Visor de Documento PDF */}
-            {fotoActual && (fotoActual.archivo_foto?.toLowerCase().endsWith('.pdf') || fotoActual.url_foto?.toLowerCase().includes('.pdf')) ? (
+            {fotoActual && (fotoActual.archivo_foto?.toLowerCase().endsWith('.pdf') || fotoActual.url_foto?.toLowerCase().includes('.pdf') || (!fotoActual.url_foto && fotoActual.url_pdf)) ? (
               <div className="w-full h-[68vh] rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex flex-col shadow-2xl">
                 <div className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 text-purple-300 font-semibold">
                     <FileText className="w-4 h-4 text-purple-400" />
-                    <span>Panel Fotográfico Oficial de Obra - Periodo {fotoActual.periodo}</span>
+                    <span>Documento Oficial de Avance Físico - Periodo {fotoActual.periodo}</span>
                   </div>
                   <a
-                    href={fotoActual.url_foto}
+                    href={fotoActual.url_foto || fotoActual.url_pdf}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold transition-colors shadow-sm"
@@ -323,9 +324,9 @@ export default function GaleriaFotosObra({ fotos = [], cui }) {
                   </a>
                 </div>
                 <iframe
-                  src={fotoActual.url_foto}
+                  src={fotoActual.url_foto || fotoActual.url_pdf}
                   className="w-full flex-1 border-0 bg-white"
-                  title={`Panel Fotográfico Periodo ${fotoActual.periodo}`}
+                  title={`Documento Oficial Periodo ${fotoActual.periodo}`}
                 />
               </div>
             ) : fotoActual?.url_foto ? (
