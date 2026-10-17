@@ -4,7 +4,10 @@ from app.database import engine, Base, check_and_apply_migrations
 from app.routers import dashboard, geo, obras, empresas, export
 
 # Crear tablas en base de datos si no existen y aplicar migraciones
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"[DB INIT] Aviso al inicializar tablas: {e}")
 check_and_apply_migrations()
 
 app = FastAPI(

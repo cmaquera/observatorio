@@ -16,13 +16,10 @@ COPY app/ ./app/
 COPY run_server.py .
 COPY check_links.py .
 
-RUN useradd --create-home --shell /bin/bash appuser \
-    && mkdir -p /app/data /app/data_seed \
-    && chown -R appuser:appuser /app
+RUN mkdir -p /app/data /app/data_seed
 
-COPY --chown=appuser:appuser data/observatorio.db /app/data_seed/observatorio.db
-
-USER appuser
+COPY data/observatorio.db /app/data_seed/observatorio.db
+COPY data/observatorio.db /app/data/observatorio.db
 
 EXPOSE 8000
 

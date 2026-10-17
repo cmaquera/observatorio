@@ -24,7 +24,10 @@ MAX_CACHE_ENTRIES = 1000
 
 # Directorio de caché en disco para fotos y PDFs oficiales del MEF
 _ATTACHMENT_CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "cache_adjuntos"))
-os.makedirs(_ATTACHMENT_CACHE_DIR, exist_ok=True)
+try:
+    os.makedirs(_ATTACHMENT_CACHE_DIR, exist_ok=True)
+except OSError:
+    pass
 
 # Tokens de sesión confidencial para descarga de archivos MEF
 _SESSION_TOKEN_CACHE: Dict[str, Tuple[str, str, float]] = {}
