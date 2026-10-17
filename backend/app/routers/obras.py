@@ -148,7 +148,7 @@ def get_map_points(
     result_points = []
     for p in points:
         lat_p, lng_p = p.latitud, p.longitud
-        if not es_coordenada_peru_valida(lat_p, lng_p):
+        if not es_coordenada_peru_valida(lat_p, lng_p, p.departamento):
             lat_p, lng_p = resolver_coordenadas(lat_p, lng_p, p.departamento or "", p.provincia or "", p.distrito or "")
         result_points.append({
             "cui": p.cui,
@@ -255,11 +255,11 @@ def get_obra_detalle(cui: str, db: Session = Depends(get_db)):
             if mef_data.get("ubicacion_oficial"):
                 geo_info = mef_data["ubicacion_oficial"]
                 lat_geo, lon_geo = normalizar_coordenadas_peru(geo_info.get("latitud"), geo_info.get("longitud"))
-                if lat_geo is not None and lon_geo is not None:
-                    if not es_coordenada_peru_valida(out.latitud, out.longitud):
+                if lat_geo is not None and lon_geo is not None and es_coordenada_peru_valida(lat_geo, lon_geo, obra.departamento):
+                    if not es_coordenada_peru_valida(out.latitud, out.longitud, obra.departamento):
                         out.latitud = lat_geo
                         out.longitud = lon_geo
-            if not es_coordenada_peru_valida(out.latitud, out.longitud):
+            if not es_coordenada_peru_valida(out.latitud, out.longitud, obra.departamento):
                 out.latitud, out.longitud = resolver_coordenadas(
                     out.latitud, out.longitud,
                     obra.departamento or "", obra.provincia or "", obra.distrito or "",

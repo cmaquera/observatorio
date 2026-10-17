@@ -202,8 +202,12 @@ UBIGEO_DISTRITAL = {
 }
 
 
-def es_coordenada_peru_valida(lat, lon) -> bool:
-    """Verifica si (lat, lon) está dentro de los límites continentales del Perú (excluyendo el fallback -9.1899)."""
+def es_coordenada_peru_valida(lat, lon, departamento: str = None) -> bool:
+    """
+    Verifica si (lat, lon) está dentro de los límites continentales del Perú (excluyendo el fallback -9.1899).
+    Si se especifica `departamento`, verifica además que la coordenada caiga dentro del ámbito geográfico
+    de esa región (evitando que una obra de Tacna conserve coordenadas de otra región o del Polo Sur).
+    """
     try:
         if lat is None or lon is None:
             return False
@@ -211,7 +215,20 @@ def es_coordenada_peru_valida(lat, lon) -> bool:
         lon_f = float(lon)
         if abs(lat_f - (-9.1899)) < 0.0001 and abs(lon_f - (-75.0152)) < 0.0001:
             return False
-        return -18.5 <= lat_f <= -0.01 and -81.5 <= lon_f <= -68.0
+        if not (-18.5 <= lat_f <= -0.01 and -81.5 <= lon_f <= -68.0):
+            return False
+        if departamento:
+            dpto = departamento.strip().upper()
+            for orig, norm in [("Á", "A"), ("É", "E"), ("Í", "I"), ("Ó", "O"), ("Ú", "U")]:
+                dpto = dpto.replace(orig, norm)
+            if dpto == "TACNA":
+                return -18.45 <= lat_f <= -16.70 and -71.25 <= lon_f <= -69.30
+            if dpto in DEPARTAMENTO_CENTROIDS:
+                c_lat, c_lon = DEPARTAMENTO_CENTROIDS[dpto]
+                max_delta = 5.0 if dpto in ("LORETO", "UCAYALI", "MADRE DE DIOS", "CUSCO", "AREQUIPA", "PUNO") else 3.2
+                if abs(lat_f - c_lat) > max_delta or abs(lon_f - c_lon) > max_delta:
+                    return False
+        return True
     except (ValueError, TypeError):
         return False
 
@@ -241,8 +258,8 @@ def normalizar_coordenadas_peru(lat, lon):
 
 def resolver_coordenadas(lat, lon, departamento: str, provincia: str, distrito: str, ubigeo: str = None):
     """
-    Retorna (lat, lon) válidas dentro del territorio peruano (-18.5 <= lat <= -0.01, -81.5 <= lon <= -68.0).
-    Si vienen invertidas las corrige; si vienen 0.0, None o fuera de rango, busca en cascada:
+    Retorna (lat, lon) válidas dentro del territorio peruano y del departamento correspondiente.
+    Si vienen invertidas las corrige; si vienen 0.0, None o fuera del rango regional, busca en cascada:
       1. Catálogo por código UBIGEO exacto (6 dígitos).
       2. Catálogo por Distrito (dpto, prov, dist).
       3. Catálogo por Provincia (dpto, prov).
@@ -251,7 +268,7 @@ def resolver_coordenadas(lat, lon, departamento: str, provincia: str, distrito: 
     """
     lat_norm, lon_norm = normalizar_coordenadas_peru(lat, lon)
     if lat_norm is not None and lon_norm is not None:
-        if not (abs(lat_norm - (-9.1899)) < 0.0001 and abs(lon_norm - (-75.0152)) < 0.0001):
+        if es_coordenada_peru_valida(lat_norm, lon_norm, departamento):
             return lat_norm, lon_norm
 
     # 1. Intentar por código UBIGEO distrital exacto

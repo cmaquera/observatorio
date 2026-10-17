@@ -93,17 +93,29 @@ def aplicar_enriquecimiento(
                 ((Inversion.avance_fisico == 0.0) & (Inversion.avance_financiero > 20.0))
             )
         elif target_mode == "geo_missing":
-            query = query.filter(
-                (Inversion.latitud == None) |
-                (Inversion.latitud == 0.0) |
-                (Inversion.longitud == None) |
-                (Inversion.longitud == 0.0) |
-                (Inversion.latitud == -9.1899) |
-                (Inversion.latitud < -18.5) |
-                (Inversion.latitud > -0.01) |
-                (Inversion.longitud < -81.5) |
-                (Inversion.longitud > -68.0)
-            )
+            if only_pending:
+                from sqlalchemy import or_
+                geo_conds = [
+                    Inversion.latitud == None,
+                    Inversion.latitud == 0.0,
+                    Inversion.longitud == None,
+                    Inversion.longitud == 0.0,
+                    Inversion.latitud == -9.1899,
+                    Inversion.latitud < -18.5,
+                    Inversion.latitud > -0.01,
+                    Inversion.longitud < -81.5,
+                    Inversion.longitud > -68.0,
+                ]
+                if region and region.strip().upper() == "TACNA":
+                    geo_conds.extend([
+                        Inversion.latitud < -18.45,
+                        Inversion.latitud > -16.70,
+                        Inversion.longitud < -71.25,
+                        Inversion.longitud > -69.30,
+                        Inversion.latitud == -18.0066,
+                        Inversion.latitud == -18.0146,
+                    ])
+                query = query.filter(or_(*geo_conds))
         elif target_mode == "all":
             pass
 
@@ -204,7 +216,7 @@ def aplicar_enriquecimiento(
                             normalizar_coordenadas_peru,
                             resolver_coordenadas
                         )
-                        coords_invalidas = not es_coordenada_peru_valida(inv.latitud, inv.longitud)
+                        coords_invalidas = not es_coordenada_peru_valida(inv.latitud, inv.longitud, inv.departamento)
                         geo_oficial = mef_live.get("ubicacion_oficial")
                         if (
                             geo_oficial
@@ -221,12 +233,12 @@ def aplicar_enriquecimiento(
                             if geo_oficial else (None, None)
                         )
 
-                        if lat_geo is not None and lon_geo is not None:
-                            if coords_invalidas or target_mode == "geo_missing":
+                        if lat_geo is not None and lon_geo is not None and es_coordenada_peru_valida(lat_geo, lon_geo, inv.departamento):
+                            if coords_invalidas or target_mode == "geo_missing" or not only_pending:
                                 inv.latitud = lat_geo
                                 inv.longitud = lon_geo
                                 print(f"[📍 GEO] CUI {cui}: Coordenadas fijadas desde GeoInvierte -> ({inv.latitud}, {inv.longitud})")
-                        elif coords_invalidas:
+                        elif coords_invalidas or target_mode == "geo_missing":
                             lat_ubig, lon_ubig = resolver_coordenadas(
                                 inv.latitud, inv.longitud,
                                 inv.departamento, inv.provincia, inv.distrito,

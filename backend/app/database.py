@@ -46,13 +46,14 @@ def check_and_apply_migrations():
                     conn.execute(text("ALTER TABLE inversiones ADD COLUMN fecha_enriquecimiento DATETIME;"))
                     conn.commit()
 
-                # Auto-sanear coordenadas invertidas (X/Y) o fuera del rango continental del Perú (ej. salto al Polo Sur)
+                # Auto-sanear coordenadas invertidas (X/Y) o fuera del rango continental/regional (ej. salto al Polo Sur)
                 bad_rows = conn.execute(text(
                     "SELECT cui, latitud, longitud, departamento, provincia, distrito, ubigeo "
                     "FROM inversiones "
                     "WHERE latitud IS NULL OR longitud IS NULL "
                     "OR latitud < -18.5 OR latitud > -0.01 "
-                    "OR longitud < -81.5 OR longitud > -68.0;"
+                    "OR longitud < -81.5 OR longitud > -68.0 "
+                    "OR (departamento = 'TACNA' AND (latitud < -18.45 OR latitud > -16.70 OR longitud < -71.25 OR longitud > -69.30));"
                 )).fetchall()
                 if bad_rows:
                     from app.utils.ubigeo_helper import resolver_coordenadas
@@ -66,7 +67,7 @@ def check_and_apply_migrations():
                             {"lat": new_lat, "lon": new_lon, "cui": cui_r}
                         )
                     conn.commit()
-                    print(f"[DB MIGRATION] Se corrigieron automáticamente las coordenadas de {len(bad_rows)} obras fuera del rango del Perú.")
+                    print(f"[DB MIGRATION] Se corrigieron automáticamente las coordenadas de {len(bad_rows)} obras fuera de rango.")
     except Exception as e:
         print(f"[DB MIGRATION] Aviso en migración: {e}")
 

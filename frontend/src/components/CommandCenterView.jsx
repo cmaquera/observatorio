@@ -18,6 +18,7 @@ import {
   X
 } from 'lucide-react';
 import { getMapPoints, getObras } from '../services/api';
+import { DEPARTAMENTO_CENTROIDS } from '../services/geoDetector';
 
 const formatMoney = (val) => {
   if (!val && val !== 0) return 'S/ 0.00';
@@ -25,6 +26,44 @@ const formatMoney = (val) => {
   if (val >= 1_000_000) return `S/ ${(val / 1_000_000).toFixed(2)} Millones`;
   return `S/ ${val.toLocaleString('es-PE')}`;
 };
+
+// Normaliza coordenadas que vengan con ejes X/Y invertidos y valida que pertenezcan al Perú
+function normalizePointCoords(p, targetDept) {
+  let lat = Number(p.lat);
+  let lng = Number(p.lng);
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+
+  // Auto-corregir si latitud y longitud vienen invertidas (ej. lat=-70.5, lng=-17.4 en Tacna)
+  if (lat >= -81.5 && lat <= -68.0 && lng >= -18.5 && lng <= -0.01) {
+    const tmp = lat;
+    lat = lng;
+    lng = tmp;
+  }
+
+  // Validar rango continental del Perú
+  if (lat < -18.5 || lat > -0.01 || lng < -81.5 || lng > -68.0) {
+    const deptKey = (targetDept || p.dpto || '').toUpperCase().trim();
+    const fallback = DEPARTAMENTO_CENTROIDS[deptKey];
+    if (fallback) {
+      return { ...p, lat: fallback.lat, lng: fallback.lon };
+    }
+    return null;
+  }
+
+  return { ...p, lat, lng };
+}
+
+function isWithinDepartmentBounds(lat, lng, dept) {
+  if (!dept) return true;
+  const d = dept.toUpperCase().trim();
+  if (d === 'TACNA') {
+    return lat >= -18.45 && lat <= -16.70 && lng >= -71.25 && lng <= -69.30;
+  }
+  const c = DEPARTAMENTO_CENTROIDS[d];
+  if (!c) return true;
+  const maxDelta = ['LORETO', 'UCAYALI', 'MADRE DE DIOS', 'CUSCO', 'AREQUIPA', 'PUNO'].includes(d) ? 5.0 : 3.2;
+  return Math.abs(lat - c.lat) <= maxDelta && Math.abs(lng - c.lon) <= maxDelta;
+}
 
 // Clasificador robusto para catalogar obras reales por su objeto y especialidad
 function categorizeObra(obra) {
@@ -513,7 +552,10 @@ export default function CommandCenterView({
       getObras({ ...params, page_size: 50, sort_by: 'score_desc' })
     ])
       .then(([points, obrasRes]) => {
-        const pointsData = points || [];
+        const rawPoints = points || [];
+        const pointsData = rawPoints
+          .map((p) => normalizePointCoords(p, filters.departamento))
+          .filter(Boolean);
         const itemsData = obrasRes?.items || [];
 
         setMapPoints(pointsData);
@@ -537,10 +579,15 @@ export default function CommandCenterView({
           });
         }
 
-        // Encuadrar el mapa para mostrar toda el área geográfica de los puntos filtrados
-        if (pointsData.length > 0) {
+        // Encuadrar el mapa usando solo puntos dentro del ámbito del departamento seleccionado
+        const framingPoints = pointsData.filter((p) =>
+          isWithinDepartmentBounds(p.lat, p.lng, filters.departamento)
+        );
+        const targetFraming = framingPoints.length > 0 ? framingPoints : pointsData;
+
+        if (targetFraming.length > 0) {
           let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-          pointsData.forEach((p) => {
+          targetFraming.forEach((p) => {
             if (p.lat && p.lng) {
               if (p.lat < minLat) minLat = p.lat;
               if (p.lat > maxLat) maxLat = p.lat;
@@ -558,10 +605,21 @@ export default function CommandCenterView({
           } else {
             // Un solo punto o puntos muy juntos: centrar con zoom adecuado
             setMapBounds(null);
-            setMapCenter([minLat !== 90 ? minLat : -13.5319, minLng !== 180 ? minLng : -71.9675]);
+            const fallbackDept = DEPARTAMENTO_CENTROIDS[(filters.departamento || '').toUpperCase().trim()];
+            const defaultLat = fallbackDept ? fallbackDept.lat : -13.5319;
+            const defaultLng = fallbackDept ? fallbackDept.lon : -71.9675;
+            setMapCenter([minLat !== 90 ? minLat : defaultLat, minLng !== 180 ? minLng : defaultLng]);
             setMapZoom(filters.distrito ? 13 : filters.provincia ? 11 : 10);
           }
           setFlyTrigger((prev) => prev + 1);
+        } else if (filters.departamento) {
+          const fallbackDept = DEPARTAMENTO_CENTROIDS[filters.departamento.toUpperCase().trim()];
+          if (fallbackDept) {
+            setMapBounds(null);
+            setMapCenter([fallbackDept.lat, fallbackDept.lon]);
+            setMapZoom(10);
+            setFlyTrigger((prev) => prev + 1);
+          }
         }
 
         // NO auto-seleccionar ninguna obra: vista panorámica limpia sin popups
