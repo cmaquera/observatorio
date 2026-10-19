@@ -5,7 +5,12 @@ import { formatCompactMoney as formatMoney } from '../utils/formatters';
 export default function MetricCards({ kpis, loading }) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 animate-pulse">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-label="Cargando indicadores clave"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 animate-pulse"
+      >
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-28 bg-slate-200 dark:bg-slate-800/60 rounded-2xl border border-slate-300 dark:border-slate-700/60"></div>
         ))}
@@ -24,18 +29,24 @@ export default function MetricCards({ kpis, loading }) {
   } = kpis || {};
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 transition-colors">
+    <section
+      aria-labelledby="kpis-section-heading"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 transition-colors"
+    >
+      <h2 id="kpis-section-heading" className="sr-only">
+        Indicadores generales y métricas clave de inversión pública
+      </h2>
       
       {/* 1. Presupuesto Total */}
-      <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden transition-all">
-        <div className="flex items-center justify-between">
+      <article className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden transition-all">
+        <header className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             Inversión Vigilada
           </span>
           <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40">
-            <DollarSign className="w-4 h-4" />
+            <DollarSign className="w-4 h-4" aria-hidden="true" />
           </div>
-        </div>
+        </header>
         <div className="mt-3">
           <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
             {formatMoney(presupuesto_total)}
@@ -45,18 +56,18 @@ export default function MetricCards({ kpis, loading }) {
             <span>auditadas</span>
           </div>
         </div>
-      </div>
+      </article>
 
       {/* 2. Dinero Público en Riesgo */}
-      <div className="bg-white dark:bg-slate-900/90 border border-red-200 dark:border-red-900/40 hover:border-red-300 dark:hover:border-red-800/60 rounded-2xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden transition-all">
-        <div className="flex items-center justify-between">
+      <article className="bg-white dark:bg-slate-900/90 border border-red-200 dark:border-red-900/40 hover:border-red-300 dark:hover:border-red-800/60 rounded-2xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden transition-all">
+        <header className="flex items-center justify-between">
           <span className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">
             Monto en Observación
           </span>
           <div className="p-2 rounded-xl bg-red-50 dark:bg-red-950/70 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50">
-            <AlertOctagon className="w-4 h-4" />
+            <AlertOctagon className="w-4 h-4" aria-hidden="true" />
           </div>
-        </div>
+        </header>
         <div className="mt-3">
           <div className="text-2xl font-black text-red-600 dark:text-red-400 tracking-tight">
             {formatMoney(monto_en_riesgo)}
@@ -65,18 +76,18 @@ export default function MetricCards({ kpis, loading }) {
             En proyectos con retrasos o pagos adelantados
           </div>
         </div>
-      </div>
+      </article>
 
       {/* 3. Obras en Peligro Crítico */}
-      <div className="bg-white dark:bg-slate-900/90 border border-amber-200 dark:border-amber-900/40 hover:border-amber-300 dark:hover:border-amber-800/60 rounded-2xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden transition-all">
-        <div className="flex items-center justify-between">
+      <article className="bg-white dark:bg-slate-900/90 border border-amber-200 dark:border-amber-900/40 hover:border-amber-300 dark:hover:border-amber-800/60 rounded-2xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden transition-all">
+        <header className="flex items-center justify-between">
           <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
             Alertas de Fiscalización
           </span>
           <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50">
-            <ShieldAlert className="w-4 h-4" />
+            <ShieldAlert className="w-4 h-4" aria-hidden="true" />
           </div>
-        </div>
+        </header>
         <div className="mt-3 flex items-baseline gap-2">
           <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
             {total_criticos}
@@ -88,18 +99,18 @@ export default function MetricCards({ kpis, loading }) {
         <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
           De {total_alertas} obras con observaciones técnicas
         </div>
-      </div>
+      </article>
 
       {/* 4. Obras Retrasadas */}
-      <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden transition-all">
-        <div className="flex items-center justify-between">
+      <article className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-5 shadow-sm dark:shadow-lg relative overflow-hidden transition-all">
+        <header className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             Plazos y Cronogramas
           </span>
           <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/40">
-            <Clock className="w-4 h-4" />
+            <Clock className="w-4 h-4" aria-hidden="true" />
           </div>
-        </div>
+        </header>
         <div className="mt-3">
           <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-baseline gap-2">
             <span>{plazo_vencido_count}</span>
@@ -110,9 +121,9 @@ export default function MetricCards({ kpis, loading }) {
             <span className="font-semibold text-rose-600 dark:text-rose-400">+{desfase_promedio_pp}% financiero</span>
           </div>
         </div>
-      </div>
+      </article>
 
-    </div>
+    </section>
   );
 }
 

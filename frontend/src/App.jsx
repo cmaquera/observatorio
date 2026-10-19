@@ -348,6 +348,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col selection:bg-red-500 selection:text-white transition-colors duration-200">
       
+      {/* Enlace accesible para saltar directamente al contenido principal */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-red-600 focus:text-white focus:rounded-lg focus:shadow-xl focus:outline-none font-bold text-xs transition-all"
+      >
+        Saltar al contenido principal
+      </a>
+
       {/* 1. Barra de Navegación */}
       <Navbar
         activeTab={activeTab}
@@ -360,7 +368,10 @@ export default function App() {
       />
 
       {/* 2. Contenido Principal */}
-      <main className={`flex-1 w-full mx-auto transition-all ${activeTab === 'command' ? 'max-w-[1920px] px-3 sm:px-4 lg:px-6 py-4' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-6'}`}>
+      <main
+        id="main-content"
+        className={`flex-1 w-full mx-auto transition-all ${activeTab === 'command' ? 'max-w-[1920px] px-3 sm:px-4 lg:px-6 py-4' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-6'}`}
+      >
         
         {/* Filtro Geográfico Jerárquico con detección inteligente */}
         <GeoFilterBar
@@ -389,9 +400,13 @@ export default function App() {
         {activeTab !== 'command' && (
           <>
             {/* Indicador de Conciliación Oficial en Línea */}
-            <div className="flex items-center justify-between bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3.5 py-1.5 mb-5 text-xs text-slate-600 dark:text-slate-400 shadow-sm dark:shadow-none transition-colors">
+            <div
+              role="status"
+              aria-label="Estado de auditoría oficial en vivo"
+              className="flex items-center justify-between bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3.5 py-1.5 mb-5 text-xs text-slate-600 dark:text-slate-400 shadow-sm dark:shadow-none transition-colors"
+            >
               <div className="flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
+                <span className="relative flex h-2 w-2" aria-hidden="true">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>

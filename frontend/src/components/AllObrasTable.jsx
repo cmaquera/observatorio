@@ -51,13 +51,16 @@ export default function AllObrasTable({ filters, onSelectProject, onExportCsv })
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm dark:shadow-xl mb-8 transition-colors">
+    <section
+      aria-labelledby="catalogo-obras-heading"
+      className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm dark:shadow-xl mb-8 transition-colors"
+    >
       
       {/* Cabecera */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-4 border-b border-slate-200 dark:border-slate-800">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Layers className="w-5 h-5 text-red-500" />
+          <h2 id="catalogo-obras-heading" className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Layers className="w-5 h-5 text-red-500" aria-hidden="true" />
             <span>Catálogo Completo de Inversiones Monitoreadas</span>
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -67,14 +70,16 @@ export default function AllObrasTable({ filters, onSelectProject, onExportCsv })
 
         {/* Ordenamiento y Exportación */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
-            <ArrowUpDown className="w-3.5 h-3.5" />
+          <label htmlFor="sort-obras-select" className="text-slate-500 dark:text-slate-400 flex items-center gap-1 cursor-pointer">
+            <ArrowUpDown className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Ordenar por:</span>
-          </span>
+          </label>
           <select
+            id="sort-obras-select"
+            aria-label="Ordenar catálogo de obras por"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-red-500 text-xs cursor-pointer"
+            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-red-500 text-xs cursor-pointer font-medium"
           >
             <option value="score_desc">Mayor Riesgo (Retraso o Sobrecosto)</option>
             <option value="monto_desc">Mayor Presupuesto (Más Dinero)</option>
@@ -84,42 +89,50 @@ export default function AllObrasTable({ filters, onSelectProject, onExportCsv })
 
           {onExportCsv && (
             <button
+              type="button"
               onClick={onExportCsv}
+              aria-label="Descargar padrón filtrado de obras en formato CSV"
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-400 dark:border-emerald-800/80 font-semibold transition-colors cursor-pointer"
               title="Descargar padrón filtrado en formato CSV"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Exportar CSV</span>
             </button>
           )}
         </div>
-      </div>
+      </header>
 
       {/* Tabla de Obras */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+        <table
+          className="w-full text-left text-xs text-slate-700 dark:text-slate-300"
+          aria-label="Catálogo de inversiones públicas con comparativo de avance físico y financiero"
+        >
+          <caption className="sr-only">
+            Relación de obras públicas monitoreadas con costos actualizados y semáforo de riesgo
+          </caption>
           <thead className="bg-slate-50 dark:bg-slate-950/80 uppercase text-[11px] font-semibold text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
             <tr>
-              <th className="py-3 px-3">CUI</th>
-              <th className="py-3 px-4">Obra y Entidad Responsable</th>
-              <th className="py-3 px-3">Ubicación</th>
-              <th className="py-3 px-3 text-right">Presupuesto</th>
-              <th className="py-3 px-3 text-center" title="Avance Físico reportado vs Dinero Pagado">¿Hecho / Pagado?</th>
-              <th className="py-3 px-3 text-center" title="Diferencia de puntos porcentuales entre lo pagado y lo construido">Diferencia</th>
-              <th className="py-3 px-3 text-center">Semáforo</th>
-              <th className="py-3 px-3 text-center">Ficha</th>
+              <th scope="col" className="py-3 px-3">CUI</th>
+              <th scope="col" className="py-3 px-4">Obra y Entidad Responsable</th>
+              <th scope="col" className="py-3 px-3">Ubicación</th>
+              <th scope="col" className="py-3 px-3 text-right">Presupuesto</th>
+              <th scope="col" className="py-3 px-3 text-center" title="Avance Físico reportado vs Dinero Pagado">¿Hecho / Pagado?</th>
+              <th scope="col" className="py-3 px-3 text-center" title="Diferencia de puntos porcentuales entre lo pagado y lo construido">Diferencia</th>
+              <th scope="col" className="py-3 px-3 text-center">Semáforo</th>
+              <th scope="col" className="py-3 px-3 text-center">Ficha</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
             {loading ? (
               <tr>
-                <td colSpan="8" className="text-center py-10 text-slate-500 dark:text-slate-400">
+                <td colSpan="8" role="status" aria-live="polite" className="text-center py-10 text-slate-500 dark:text-slate-400">
                   Consultando registros del MEF...
                 </td>
               </tr>
             ) : data.items.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center py-10 text-slate-500 dark:text-slate-400">
+                <td colSpan="8" role="status" aria-live="polite" className="text-center py-10 text-slate-500 dark:text-slate-400">
                   No se encontraron obras con los criterios seleccionados.
                 </td>
               </tr>
@@ -132,8 +145,15 @@ export default function AllObrasTable({ filters, onSelectProject, onExportCsv })
                 return (
                   <tr
                     key={o.cui}
+                    tabIndex={0}
+                    role="row"
                     onClick={() => onSelectProject(o.cui)}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onSelectProject(o.cui);
+                      }
+                    }}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group focus:outline-none focus-visible:bg-slate-100 dark:focus-visible:bg-slate-800/60"
                   >
                     <td className="py-3.5 px-3 font-mono font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
                       {o.cui}
@@ -179,14 +199,16 @@ export default function AllObrasTable({ filters, onSelectProject, onExportCsv })
 
                     <td className="py-3.5 px-3 text-center whitespace-nowrap">
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectProject(o.cui);
                         }}
                         className="p-1.5 rounded-lg bg-slate-100 hover:bg-red-600 text-slate-600 hover:text-white dark:bg-slate-800 dark:hover:bg-red-600 dark:text-slate-300 dark:hover:text-white transition-colors cursor-pointer"
                         title="Ver Ficha Técnica"
+                        aria-label={`Ver ficha técnica de la obra CUI ${o.cui}: ${o.nombre}`}
                       >
-                        <ArrowUpRight className="w-3.5 h-3.5" />
+                        <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
                       </button>
                     </td>
                   </tr>
@@ -199,33 +221,40 @@ export default function AllObrasTable({ filters, onSelectProject, onExportCsv })
 
       {/* Paginación */}
       {data.total_pages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+        <nav
+          aria-label="Paginación de resultados del catálogo"
+          className="flex items-center justify-between pt-4 mt-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400"
+        >
           <div>
             Página <span className="font-semibold text-slate-900 dark:text-white">{data.page}</span> de <span className="font-semibold text-slate-900 dark:text-white">{data.total_pages}</span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={data.page <= 1}
+              aria-label="Ir a la página anterior"
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-800 dark:text-white transition-colors cursor-pointer"
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Anterior</span>
             </button>
 
             <button
+              type="button"
               onClick={() => setPage((p) => Math.min(data.total_pages, p + 1))}
               disabled={data.page >= data.total_pages}
+              aria-label="Ir a la página siguiente"
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-800 dark:text-white transition-colors cursor-pointer"
             >
               <span>Siguiente</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
-        </div>
+        </nav>
       )}
 
-    </div>
+    </section>
   );
 }

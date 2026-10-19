@@ -44,18 +44,21 @@ export default function CriticalProjects({ projects = [], onSelectProject, loadi
   const hasMore = projects.length > 3;
 
   return (
-    <div className="bg-white dark:bg-slate-900/90 border border-red-200 dark:border-red-900/30 rounded-2xl p-5 sm:p-6 mb-8 shadow-sm dark:shadow-2xl relative transition-colors">
+    <section
+      aria-labelledby="critical-projects-heading"
+      className="bg-white dark:bg-slate-900/90 border border-red-200 dark:border-red-900/30 rounded-2xl p-5 sm:p-6 mb-8 shadow-sm dark:shadow-2xl relative transition-colors"
+    >
       
       {/* Header de la sección */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-200 dark:border-slate-800/80">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-200 dark:border-slate-800/80">
         <div className="flex items-center gap-3">
-          <div className="relative flex h-3 w-3">
+          <div className="relative flex h-3 w-3" aria-hidden="true">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+              <h2 id="critical-projects-heading" className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                 Alertas Prioritarias de Fiscalización
               </h2>
               <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800">
@@ -69,32 +72,41 @@ export default function CriticalProjects({ projects = [], onSelectProject, loadi
         </div>
 
         <div className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1.5 self-start sm:self-auto bg-slate-100 dark:bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
-          <ShieldAlert className="w-4 h-4 text-red-500 dark:text-red-400" />
+          <ShieldAlert className="w-4 h-4 text-red-500 dark:text-red-400" aria-hidden="true" />
           <span>Ordenadas por gravedad</span>
         </div>
-      </div>
+      </header>
 
       {/* Lista de Proyectos Críticos */}
-      <div className="space-y-3.5">
+      <div id="critical-projects-list" className="space-y-3.5">
         {visibleProjects.map((p) => {
           const ev = p.evaluacion_riesgo || {};
           const diff = p.diferencia_avance || 0;
           const isCritical = ev.nivel_alerta === 'CRITICO';
 
           return (
-            <div
+            <article
               key={p.cui}
+              tabIndex={0}
+              role="button"
+              aria-labelledby={`critical-title-${p.cui}`}
               onClick={() => onSelectProject(p.cui)}
-              className="bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800/90 hover:border-red-500/70 rounded-xl p-4 sm:p-5 transition-all hover:shadow-lg dark:hover:shadow-red-950/20 cursor-pointer group"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectProject(p.cui);
+                }
+              }}
+              className="bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800/90 hover:border-red-500/70 rounded-xl p-4 sm:p-5 transition-all hover:shadow-lg dark:hover:shadow-red-950/20 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
             >
               {/* Encabezado de la Tarjeta */}
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <header className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2 text-xs">
                   <span className="font-mono font-bold px-2 py-0.5 rounded bg-white dark:bg-slate-900 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/60">
                     CUI {p.cui}
                   </span>
                   <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                    <MapPin className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
                     <strong>{p.distrito}</strong>, {p.provincia}
                   </span>
                 </div>
@@ -113,15 +125,15 @@ export default function CriticalProjects({ projects = [], onSelectProject, loadi
                     </span>
                   )}
                 </div>
-              </div>
+              </header>
 
               {/* Título de la Obra y Entidad */}
               <div className="mb-3">
-                <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors line-clamp-2 leading-snug">
+                <h3 id={`critical-title-${p.cui}`} className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors line-clamp-2 leading-snug">
                   {p.nombre}
-                </h4>
+                </h3>
                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5 truncate">
-                  <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
                   <span className="truncate">Entidad: <strong className="text-slate-700 dark:text-slate-300 font-medium">{p.entidad}</strong></span>
                 </div>
               </div>
@@ -192,7 +204,7 @@ export default function CriticalProjects({ projects = [], onSelectProject, loadi
               </div>
 
               {/* Pie de Tarjeta: Presupuesto y Botón */}
-              <div className="flex items-center justify-between gap-3 pt-1">
+              <footer className="flex items-center justify-between gap-3 pt-1">
                 <div>
                   <span className="text-[10px] uppercase font-semibold text-slate-400 dark:text-slate-500 block">
                     Presupuesto Actualizado
@@ -203,17 +215,19 @@ export default function CriticalProjects({ projects = [], onSelectProject, loadi
                 </div>
 
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onSelectProject(p.cui);
                   }}
+                  aria-label={`Auditar obra CUI ${p.cui}: ${p.nombre}`}
                   className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/20 transition-all group-hover:scale-105 shrink-0 cursor-pointer"
                 >
                   <span>Auditar Obra</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
-              </div>
-            </div>
+              </footer>
+            </article>
           );
         })}
       </div>
@@ -222,17 +236,20 @@ export default function CriticalProjects({ projects = [], onSelectProject, loadi
       {hasMore && (
         <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 text-center">
           <button
+            type="button"
             onClick={() => setShowAll(!showAll)}
+            aria-expanded={showAll}
+            aria-controls="critical-projects-list"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all shadow-sm cursor-pointer"
           >
             {showAll ? (
               <>
-                <ChevronUp className="w-4 h-4 text-red-500 dark:text-red-400" />
+                <ChevronUp className="w-4 h-4 text-red-500 dark:text-red-400" aria-hidden="true" />
                 <span>Mostrar menos obras (solo las 3 más críticas)</span>
               </>
             ) : (
               <>
-                <ChevronDown className="w-4 h-4 text-red-500 dark:text-red-400" />
+                <ChevronDown className="w-4 h-4 text-red-500 dark:text-red-400" aria-hidden="true" />
                 <span>Ver las {projects.length - 3} obras observadas adicionales</span>
               </>
             )}
@@ -240,6 +257,6 @@ export default function CriticalProjects({ projects = [], onSelectProject, loadi
         </div>
       )}
 
-    </div>
+    </section>
   );
 }

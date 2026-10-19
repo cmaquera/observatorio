@@ -965,7 +965,8 @@ export default function CommandCenterView({
         {/* COLUMNA IZQUIERDA: LISTA COMPLETA DE OBRAS EN LA ZONA        */}
         {/* (Eficiencia trasladada a la ficha según solicitud)          */}
         {/* ------------------------------------------------------------ */}
-        <div
+        <aside
+          aria-label="Lista de obras en la zona"
           className="col-span-12 lg:col-span-3 flex flex-col min-h-0"
           style={isDesktop && centerColHeight ? { height: `${centerColHeight}px` } : undefined}
         >
@@ -974,7 +975,7 @@ export default function CommandCenterView({
           <div className="glass-panel p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 flex-1 flex flex-col shadow-lg overflow-hidden min-h-0">
             <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 pb-2.5 mb-2.5 border-b border-slate-200 dark:border-slate-800/80 shrink-0">
               <span className="flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                <FileText className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" aria-hidden="true" />
                 <span className="text-slate-800 dark:text-slate-200">Obras en la Zona ({filteredObras.length})</span>
               </span>
               {selectedSector !== 'TODOS' && (
@@ -983,14 +984,14 @@ export default function CommandCenterView({
                   className="text-[10px] text-cyan-600 dark:text-cyan-400 font-mono hover:underline cursor-pointer flex items-center gap-1"
                 >
                   <span>Ver todas</span>
-                  <X className="w-3 h-3" />
+                  <X className="w-3 h-3" aria-hidden="true" />
                 </button>
               )}
             </div>
 
             {filteredObras.length === 0 ? (
               <div className="p-5 text-center text-slate-500 dark:text-slate-400 text-xs flex-1 flex flex-col items-center justify-center min-h-0">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500 dark:text-emerald-400 mx-auto mb-2" />
+                <CheckCircle2 className="w-8 h-8 text-emerald-500 dark:text-emerald-400 mx-auto mb-2" aria-hidden="true" />
                 <p className="font-semibold text-slate-800 dark:text-slate-200">No hay obras registradas con este filtro</p>
                 <p className="text-[11px] text-slate-500 mt-1">Prueba seleccionando "Todas las obras" o cambiando de distrito.</p>
                 <button
@@ -1015,10 +1016,19 @@ export default function CommandCenterView({
                   const selStyle = getSelectionStyle(alertaNivel);
 
                   return (
-                    <div
+                    <article
                       key={p.cui}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleFocusProject(p.cui, p.latitud, p.longitud);
+                        }
+                      }}
+                      aria-label={`Enfocar obra CUI ${p.cui}: ${p.nombre || ''}`}
                       onClick={() => handleFocusProject(p.cui, p.latitud, p.longitud)}
-                      className={`p-3 rounded-xl cursor-pointer transition-all ${
+                      className={`p-3 rounded-xl cursor-pointer transition-all focus:outline-hidden focus:ring-2 focus:ring-cyan-500 ${
                         isFocused
                           ? `${selStyle.ring} ${selStyle.glow}`
                           : 'bg-white dark:bg-slate-900/70 border-2 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs dark:shadow-none'
@@ -1100,17 +1110,17 @@ export default function CommandCenterView({
                           className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 font-semibold cursor-pointer hover:underline flex items-center gap-1"
                         >
                           <span>Auditar</span>
-                          <ExternalLink className="w-3 h-3" />
+                          <ExternalLink className="w-3 h-3" aria-hidden="true" />
                         </button>
                       </div>
-                    </div>
+                    </article>
                   );
                 })}
               </div>
             )}
           </div>
 
-        </div>
+        </aside>
 
         {/* ------------------------------------------------------------ */}
         {/* COLUMNA CENTRAL: MAPA CON FICHA LATERAL A LA DERECHA        */}
@@ -1363,6 +1373,7 @@ export default function CommandCenterView({
             <div className="absolute bottom-12 right-4 z-20 glass-panel p-1 rounded-xl flex items-center gap-1 border border-slate-200 dark:border-slate-700 shadow-xl">
               <button
                 onClick={() => setMapZoom((z) => Math.min(18, z + 1))}
+                aria-label="Acercar mapa"
                 className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-sm cursor-pointer"
                 title="Acercar mapa"
               >
@@ -1391,6 +1402,7 @@ export default function CommandCenterView({
                     setFlyTrigger((prev) => prev + 1);
                   }
                 }}
+                aria-label="Centrar y encuadrar obras visibles"
                 className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs cursor-pointer"
                 title="Centrar y encuadrar obras visibles"
               >
@@ -1398,6 +1410,7 @@ export default function CommandCenterView({
               </button>
               <button
                 onClick={() => setMapZoom((z) => Math.max(5, z - 1))}
+                aria-label="Alejar mapa"
                 className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-sm cursor-pointer"
                 title="Alejar mapa"
               >
@@ -1469,7 +1482,8 @@ export default function CommandCenterView({
         {/* COLUMNA DERECHA: SECTORES, ESTADOS, VOLUMEN Y ALERTAS REALES */}
         {/* (Contadores movidos a la derecha según petición del usuario) */}
         {/* ------------------------------------------------------------ */}
-        <div
+        <aside
+          aria-label="Sectores y alertas de contraloría"
           className="col-span-12 lg:col-span-3 flex flex-col min-h-0 space-y-4"
           style={isDesktop && centerColHeight ? { height: `${centerColHeight}px` } : undefined}
         >
@@ -1486,14 +1500,14 @@ export default function CommandCenterView({
                   className="text-[10px] text-cyan-600 dark:text-cyan-400 font-mono hover:underline cursor-pointer flex items-center gap-1"
                 >
                   <span>Ver todos</span>
-                  <X className="w-3 h-3" />
+                  <X className="w-3 h-3" aria-hidden="true" />
                 </button>
               ) : (
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Filtro rápido</span>
               )}
             </div>
 
-            <div className="grid grid-cols-5 gap-1.5">
+            <div role="group" aria-label="Filtro rápido por sector" className="grid grid-cols-5 gap-1.5">
               {[
                 { id: 'VIAL', ...getSectorStyle('VIAL'), count: sectorCounts.VIAL },
                 { id: 'SALUD', ...getSectorStyle('SALUD'), count: sectorCounts.SALUD },
@@ -1506,6 +1520,7 @@ export default function CommandCenterView({
                   <button
                     key={sec.id}
                     onClick={() => setSelectedSector(isSelected ? 'TODOS' : sec.id)}
+                    aria-pressed={isSelected}
                     className={`p-1.5 rounded-xl border-2 text-center transition-all cursor-pointer ${
                       isSelected
                         ? sec.activeStyle
@@ -1572,10 +1587,19 @@ export default function CommandCenterView({
                   const selStyle = getSelectionStyle(altNivel);
 
                   return (
-                    <div
+                    <article
                       key={alt.cui}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleFocusProject(alt.cui, alt.latitud, alt.longitud);
+                        }
+                      }}
+                      aria-label={`Enfocar alerta de obra CUI ${alt.cui}: ${alt.nombre || ''}`}
                       onClick={() => handleFocusProject(alt.cui, alt.latitud, alt.longitud)}
-                      className={`p-3 rounded-xl cursor-pointer transition-all ${
+                      className={`p-3 rounded-xl cursor-pointer transition-all focus:outline-hidden focus:ring-2 focus:ring-orange-500 ${
                         isFocused
                           ? `${selStyle.ring} ${selStyle.glow}`
                           : isCrit
@@ -1591,6 +1615,7 @@ export default function CommandCenterView({
                               ? 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/40'
                               : 'bg-orange-50 text-orange-600 border border-orange-200 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-500/40'
                           }`}
+                          aria-hidden="true"
                         >
                           !
                         </div>
@@ -1624,7 +1649,7 @@ export default function CommandCenterView({
 
                           {/* Píldora de Recomendación Cívica */}
                           <div className="mt-2 p-1.5 rounded-lg bg-orange-50/80 border border-orange-200 text-orange-900 dark:bg-orange-950/40 dark:border-orange-800/50 dark:text-orange-300 flex items-center gap-1.5 text-[11px]">
-                            <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-orange-600 dark:text-orange-400" />
+                            <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-orange-600 dark:text-orange-400" aria-hidden="true" />
                             <span>
                               {alt.diferencia_avance > 20
                                 ? 'Recomendación: Exigir peritaje de campo y congelar adicionales.'
@@ -1633,14 +1658,14 @@ export default function CommandCenterView({
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </article>
                   );
                 })}
               </div>
             )}
           </div>
 
-        </div>
+        </aside>
 
       </div>
     </div>

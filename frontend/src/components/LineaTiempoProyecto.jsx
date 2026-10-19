@@ -67,22 +67,22 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
   const ultimoPunto = periodosDescendentes.length > 0 ? periodosDescendentes[0] : null;
 
   return (
-    <div className="bg-slate-50/80 dark:bg-gradient-to-b dark:from-slate-900/90 dark:to-slate-950 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-5 shadow-sm dark:shadow-xl space-y-5">
+    <section aria-labelledby="linea-tiempo-heading" className="bg-slate-50/80 dark:bg-gradient-to-b dark:from-slate-900/90 dark:to-slate-950 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-5 shadow-sm dark:shadow-xl space-y-5">
       
       {/* 1. Cabecera de la Línea de Tiempo */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800/80 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
+          <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800/80 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" aria-hidden="true">
             <Milestone className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-white tracking-wide">
+              <h3 id="linea-tiempo-heading" className="text-sm font-bold text-slate-800 dark:text-white tracking-wide">
                 Línea de Tiempo del Proyecto (Hitos y Evolución)
               </h3>
               {esMefSeace ? (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" aria-hidden="true"></span>
                   Seguimiento Físico en Vivo MEF
                 </span>
               ) : (
@@ -106,47 +106,47 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-600/20 dark:hover:bg-blue-600/30 dark:text-blue-300 dark:border-blue-500/40 text-xs font-semibold transition-all shadow-sm shrink-0 self-start sm:self-auto"
           >
             <span>Ver Reporte Oficial MEF</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
           </a>
         )}
-      </div>
+      </header>
 
       {/* 2. Stepper Visual de Hitos Cronológicos */}
       <div className="space-y-3">
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-          <History className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+          <History className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" aria-hidden="true" />
           <span>Hitos Clave del Ciclo del Proyecto</span>
         </h4>
 
-        <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2.5 before:bottom-2.5 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
+        <ol className="relative pl-6 space-y-4 list-none before:absolute before:left-2.5 before:top-2.5 before:bottom-2.5 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
           {hitos.map((hito, idx) => {
             const nivel = hito.nivel || 'EN_CURSO';
             
             let badgeBg = 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
             let dotBg = 'bg-slate-400 border-slate-300 dark:bg-slate-700 dark:border-slate-600';
-            let icon = <Clock className="w-3 h-3 text-slate-500 dark:text-slate-400" />;
+            let icon = <Clock className="w-3 h-3 text-slate-500 dark:text-slate-400" aria-hidden="true" />;
 
             if (nivel === 'COMPLETADO') {
               badgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800';
               dotBg = 'bg-emerald-500 border-emerald-300 ring-2 ring-emerald-100 dark:ring-emerald-950';
-              icon = <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />;
+              icon = <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />;
             } else if (nivel === 'RETRASADO') {
               badgeBg = 'bg-red-50 text-red-700 border-red-300 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800';
               dotBg = 'bg-red-500 border-red-300 ring-2 ring-red-100 dark:ring-red-950';
-              icon = <AlertTriangle className="w-3 h-3 text-red-600 dark:text-red-400" />;
+              icon = <AlertTriangle className="w-3 h-3 text-red-600 dark:text-red-400" aria-hidden="true" />;
             } else if (nivel === 'EN_CURSO') {
               badgeBg = 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800';
               dotBg = 'bg-amber-500 border-amber-300 ring-2 ring-amber-100 dark:ring-amber-950';
-              icon = <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />;
+              icon = <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" aria-hidden="true" />;
             }
 
             return (
-              <div key={idx} className="relative group">
+              <li key={idx} className="relative group">
                 {/* Nodo en el riel */}
-                <div className={`absolute -left-6 top-1.5 w-3 h-3 rounded-full border ${dotBg} transition-transform group-hover:scale-125`}></div>
+                <div className={`absolute -left-6 top-1.5 w-3 h-3 rounded-full border ${dotBg} transition-transform group-hover:scale-125`} aria-hidden="true"></div>
 
                 {/* Tarjeta de Hito */}
-                <div className="bg-white dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800/80 rounded-xl p-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-sm">
+                <article className="bg-white dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800/80 rounded-xl p-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
                     <span className="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
                       {icon}
@@ -154,10 +154,10 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                     </span>
                     <div className="flex items-center gap-2">
                       {hito.fecha && (
-                        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                        <time dateTime={hito.fecha} className="text-[11px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                           {hito.fecha}
-                        </span>
+                        </time>
                       )}
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badgeBg}`}>
                         {hito.estado}
@@ -170,11 +170,11 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                       {hito.comentario}
                     </p>
                   )}
-                </div>
-              </div>
+                </article>
+              </li>
             );
           })}
-        </div>
+        </ol>
       </div>
 
       {/* 3. Curva de Avance Físico Mensual (Si tiene data SEACE/MEF) */}
@@ -182,15 +182,18 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
         <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" aria-hidden="true" />
               <span>Evolución Mensual: Físico Programado vs Real ({curva_avance.length} periodos)</span>
             </h4>
             <button
+              type="button"
+              aria-expanded={showCurvaDetalle}
+              aria-controls="curva-detalle-panel"
               onClick={() => setShowCurvaDetalle(!showCurvaDetalle)}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
+              className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors cursor-pointer"
             >
               <span>{showCurvaDetalle ? 'Ocultar Detalle' : 'Ver Detalle Mensual'}</span>
-              {showCurvaDetalle ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {showCurvaDetalle ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />}
             </button>
           </div>
 
@@ -199,7 +202,9 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
             <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 shadow-sm">
               <div>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">Último Periodo Reportado</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-white">{ultimoPunto.periodo}</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-white">
+                  <time dateTime={ultimoPunto.periodo}>{ultimoPunto.periodo}</time>
+                </span>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">Reporte mensual de supervisión</span>
                 {(ultimoPunto.url_pdf || ultimoPunto.url_foto) && (
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
@@ -210,8 +215,9 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-950/70 dark:hover:bg-blue-900 dark:text-blue-300 dark:border-blue-800 text-[10px] font-semibold transition-colors"
                         title="Abrir documento PDF de avance físico / valorización"
+                        aria-label={`Abrir valorización en PDF del periodo ${ultimoPunto.periodo}`}
                       >
-                        <FileText className="w-3 h-3" />
+                        <FileText className="w-3 h-3" aria-hidden="true" />
                         <span>Valoriz. PDF</span>
                       </a>
                     )}
@@ -222,8 +228,9 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:hover:bg-emerald-900 dark:text-emerald-300 dark:border-emerald-800 text-[10px] font-semibold transition-colors"
                         title="Abrir fotografía oficial de avance físico"
+                        aria-label={`Abrir fotografía de obra del periodo ${ultimoPunto.periodo}`}
                       >
-                        <Camera className="w-3 h-3" />
+                        <Camera className="w-3 h-3" aria-hidden="true" />
                         <span>Foto Obra</span>
                       </a>
                     )}
@@ -237,7 +244,14 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                   <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{ultimoPunto.avance_real}%</span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">Prog: {ultimoPunto.avance_programado}%</span>
                 </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1">
+                <div
+                  role="progressbar"
+                  aria-valuenow={ultimoPunto.avance_real}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`Avance acumulado: ${ultimoPunto.avance_real}%`}
+                  className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1"
+                >
                   <div
                     style={{ width: `${Math.min(100, ultimoPunto.avance_real)}%` }}
                     className="bg-emerald-500 h-full rounded-full"
@@ -263,23 +277,26 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
 
           {/* Tabla / Lista Desplegable de Periodos Mensuales */}
           {showCurvaDetalle && (
-            <div className="space-y-2 pt-2">
+            <div id="curva-detalle-panel" className="space-y-2 pt-2">
               <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
                 <table className="w-full text-xs text-left text-slate-700 dark:text-slate-300">
+                  <caption className="sr-only">Evolución mensual de avance programado frente a avance real</caption>
                   <thead className="bg-slate-50 dark:bg-slate-950 text-[10px] uppercase text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
                     <tr>
-                      <th className="py-2 px-3">Periodo</th>
-                      <th className="py-2 px-3 text-right">Prog. (%)</th>
-                      <th className="py-2 px-3 text-right">Real (%)</th>
-                      <th className="py-2 px-3 text-right">Monto Real (S/)</th>
-                      <th className="py-2 px-3">Situación Reportada</th>
-                      <th className="py-2 px-3 text-center">Sustento</th>
+                      <th scope="col" className="py-2 px-3">Periodo</th>
+                      <th scope="col" className="py-2 px-3 text-right">Prog. (%)</th>
+                      <th scope="col" className="py-2 px-3 text-right">Real (%)</th>
+                      <th scope="col" className="py-2 px-3 text-right">Monto Real (S/)</th>
+                      <th scope="col" className="py-2 px-3">Situación Reportada</th>
+                      <th scope="col" className="py-2 px-3 text-center">Sustento</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-mono text-[11px] bg-white dark:bg-transparent">
                     {ultimosPeriodos.map((pt, i) => (
                       <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-2 px-3 font-bold text-slate-800 dark:text-white">{pt.periodo}</td>
+                        <td className="py-2 px-3 font-bold text-slate-800 dark:text-white">
+                          <time dateTime={pt.periodo}>{pt.periodo}</time>
+                        </td>
                         <td className="py-2 px-3 text-right text-slate-500 dark:text-slate-400">{pt.avance_programado}%</td>
                         <td className="py-2 px-3 text-right text-emerald-600 dark:text-emerald-400 font-bold">{pt.avance_real}%</td>
                         <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">{formatMoney(pt.monto_real)}</td>
@@ -297,8 +314,9 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-950/70 dark:text-blue-300 dark:border-blue-800 font-semibold"
                                 title="Ver documento PDF de avance físico"
+                                aria-label={`Ver PDF del periodo ${pt.periodo}`}
                               >
-                                <FileText className="w-3 h-3" />
+                                <FileText className="w-3 h-3" aria-hidden="true" />
                                 <span>PDF</span>
                               </a>
                             )}
@@ -309,8 +327,9 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800 font-semibold"
                                 title="Ver fotografía de obra"
+                                aria-label={`Ver foto del periodo ${pt.periodo}`}
                               >
-                                <Camera className="w-3 h-3" />
+                                <Camera className="w-3 h-3" aria-hidden="true" />
                                 <span>Foto</span>
                               </a>
                             )}
@@ -327,8 +346,10 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
 
               {curva_avance.length > 6 && (
                 <button
+                  type="button"
+                  aria-expanded={showAllPeriods}
                   onClick={() => setShowAllPeriods(!showAllPeriods)}
-                  className="w-full py-2 text-center text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-950 dark:hover:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-800 transition-colors font-medium"
+                  className="w-full py-2 text-center text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-950 dark:hover:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-800 transition-colors font-medium cursor-pointer"
                 >
                   {showAllPeriods ? 'Mostrar solo los 6 periodos más recientes' : `Mostrar los ${curva_avance.length} periodos completos (más recientes primero)`}
                 </button>
@@ -437,7 +458,14 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                   </div>
 
                   {/* Barra de progreso */}
-                  <div className="w-full bg-slate-100 dark:bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-200 dark:border-slate-800">
+                  <div
+                    role="progressbar"
+                    aria-valuenow={pct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`Avance de ${comp.producto || comp.componente}: ${pct.toFixed(1)}%`}
+                    className="w-full bg-slate-100 dark:bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-200 dark:border-slate-800"
+                  >
                     <div
                       style={{ width: `${Math.max(isZeroComp && (esControversia || esParalizada) ? 4 : 0, Math.min(100, pct))}%` }}
                       className={`h-full rounded-full transition-all duration-500 ${colorBar}`}
@@ -478,7 +506,7 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                   {/* Situación / Anotación de campo */}
                   {comp.situacion && (
                     <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[10px] text-slate-600 dark:text-slate-300 flex items-start gap-1.5">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-3 h-3 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
                       <span className="italic leading-tight">{comp.situacion}</span>
                     </div>
                   )}
@@ -489,8 +517,10 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
 
           {listaComponentes.length > 4 && (
             <button
+              type="button"
+              aria-expanded={showAllComponents}
               onClick={() => setShowAllComponents(!showAllComponents)}
-              className="w-full py-1.5 text-center text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-950 dark:hover:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-800 transition-colors"
+              className="w-full py-1.5 text-center text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-950 dark:hover:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
             >
               {showAllComponents ? 'Mostrar solo los 4 primeros componentes' : `Mostrar los ${listaComponentes.length} componentes completos`}
             </button>
@@ -504,7 +534,7 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <History className="w-3.5 h-3.5 text-red-500 dark:text-red-400" />
+                <History className="w-3.5 h-3.5 text-red-500 dark:text-red-400" aria-hidden="true" />
                 <span>Historial de Situación y Controversias Oficiales (Formato 12-B)</span>
               </h4>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -527,10 +557,10 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                 }`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-1 font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                  <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
-                    <Calendar className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                  <time dateTime={item.fecha} className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
+                    <Calendar className="w-3 h-3 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                     {item.fecha}
-                  </span>
+                  </time>
                   <span className={`px-1.5 py-0.2 rounded font-bold uppercase text-[9px] ${
                     item.es_controversia
                       ? 'bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/60 dark:text-red-300 dark:border-red-700'
@@ -552,7 +582,7 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
       {reprogramaciones.length > 0 && (
         <div className="space-y-2 pt-3 border-t border-slate-200 dark:border-slate-800">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
+            <Calendar className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400" aria-hidden="true" />
             <span>Modificaciones de Cronograma y Ampliaciones ({reprogramaciones.length})</span>
           </h4>
 
@@ -562,7 +592,9 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
                 <div>
                   <span className="font-semibold text-slate-800 dark:text-white block text-[11px]">{cr.descripcion}</span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                    {cr.fecha_inicio} <ArrowRight className="inline w-2.5 h-2.5 mx-0.5 text-slate-400 dark:text-slate-500" /> {cr.fecha_fin}
+                    <time dateTime={cr.fecha_inicio}>{cr.fecha_inicio}</time>
+                    <ArrowRight className="inline w-2.5 h-2.5 mx-0.5 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+                    <time dateTime={cr.fecha_fin}>{cr.fecha_fin}</time>
                   </span>
                 </div>
                 {cr.es_reprogramacion ? (
@@ -584,7 +616,7 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
       {alertas_campo.length > 0 && (
         <div className="space-y-2 pt-3 border-t border-slate-200 dark:border-slate-800">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            <ShieldAlert className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+            <ShieldAlert className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" aria-hidden="true" />
             <span>Riesgos y Problemáticas Reportadas por la Supervisión</span>
           </h4>
 
@@ -615,6 +647,6 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
         </div>
       )}
 
-    </div>
+    </section>
   );
 }

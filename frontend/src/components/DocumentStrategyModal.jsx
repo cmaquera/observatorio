@@ -1,41 +1,60 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   X, FileSearch, ShieldCheck, Database, FileText, CheckCircle2,
   AlertTriangle, Sparkles, Server
 } from 'lucide-react';
 
 export default function DocumentStrategyModal({ isOpen, onClose }) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 transition-colors">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="strategy-modal-title"
+      aria-describedby="strategy-modal-desc"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 transition-colors"
+    >
       <div className="relative w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden my-8 max-h-[92vh] flex flex-col transition-colors">
         
         {/* Cabecera */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 sticky top-0 z-20">
+        <header className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 sticky top-0 z-20">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/80 dark:text-red-400 dark:border-red-800/80">
-              <FileSearch className="w-5 h-5" />
+              <FileSearch className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <h2 id="strategy-modal-title" className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Estrategia de Inteligencia y Extracción Documental</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800">
                   Auditoría Cívica
                 </span>
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p id="strategy-modal-desc" className="text-xs text-slate-500 dark:text-slate-400">
                 Cómo superamos los bloqueos de portales estatales y analizamos los datos ocultos de contratos y adendas
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Cerrar modal de estrategia documental"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
-        </div>
+        </header>
 
         {/* Contenido con Scroll */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs text-slate-700 dark:text-slate-300">
@@ -157,18 +176,19 @@ export default function DocumentStrategyModal({ isOpen, onClose }) {
         </div>
 
         {/* Pie */}
-        <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between">
+        <footer className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-[11px]">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <ShieldCheck className="w-4 h-4 text-emerald-500" aria-hidden="true" />
             <span>Transparencia cívica con datos abiertos certificados</span>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium text-xs transition-colors cursor-pointer"
           >
             Entendido, cerrar
           </button>
-        </div>
+        </footer>
 
       </div>
     </div>

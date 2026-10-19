@@ -40,6 +40,16 @@ export default function FichaObraModal({ cui, onClose }) {
       });
   }, [cui]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   if (!cui) return null;
 
   const fotosObra = obra?.fotos_obra || obra?.linea_tiempo?.fotos_obra || [];
@@ -49,40 +59,55 @@ export default function FichaObraModal({ cui, onClose }) {
   const totalAlertasSSI = obra?.alertas_ssi?.length || 0;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 transition-colors">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={`ficha-title-${cui}`}
+      aria-describedby={`ficha-desc-${cui}`}
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 transition-colors"
+    >
       <div className="relative w-full max-w-5xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden my-4 sm:my-8 max-h-[92vh] flex flex-col text-slate-800 dark:text-slate-100 transition-colors">
         
         {/* Barra Superior Modal */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/80 sticky top-0 z-20 backdrop-blur-md">
+        <header className="flex items-center justify-between px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/80 sticky top-0 z-20 backdrop-blur-md">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800">
-              CUI {cui}
-            </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium hidden sm:inline">
-              Ficha Técnica Oficial y Cruce de Entidades
-            </span>
+            <h2 id={`ficha-title-${cui}`} className="flex items-center gap-2 m-0 p-0 font-normal">
+              <span className="px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800">
+                CUI {cui}
+              </span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium hidden sm:inline">
+                Ficha Técnica Oficial y Cruce de Entidades
+              </span>
+            </h2>
+            <p id={`ficha-desc-${cui}`} className="sr-only">
+              Diagnóstico, avance físico y financiero, contratos y evidencia fotográfica oficial de la obra CUI {cui}
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => {
                 navigator.clipboard.writeText(cui);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
+              aria-label={copied ? "CUI copiado al portapapeles" : `Copiar código CUI ${cui}`}
               className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 transition-colors flex items-center gap-1 cursor-pointer"
             >
-              {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : null}
+              {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" /> : null}
               <span>{copied ? '¡Copiado!' : 'Copiar CUI'}</span>
             </button>
             <button
+              type="button"
               onClick={onClose}
+              aria-label="Cerrar ficha de la obra"
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
-        </div>
+        </header>
 
         {/* Contenido con Scroll */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1">
@@ -134,8 +159,18 @@ export default function FichaObraModal({ cui, onClose }) {
               </div>
 
               {/* 2. Barra de Navegación por Pestañas */}
-              <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/90 rounded-2xl overflow-x-auto no-scrollbar shadow-inner">
+              <div
+                role="tablist"
+                aria-label="Secciones de la ficha de obra pública"
+                className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/90 rounded-2xl overflow-x-auto no-scrollbar shadow-inner"
+              >
                 <button
+                  type="button"
+                  role="tab"
+                  id="ficha-tab-resumen"
+                  aria-selected={activeTab === 'resumen'}
+                  aria-controls="ficha-panel-resumen"
+                  tabIndex={activeTab === 'resumen' ? 0 : -1}
                   onClick={() => setActiveTab('resumen')}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     activeTab === 'resumen'
@@ -143,11 +178,17 @@ export default function FichaObraModal({ cui, onClose }) {
                       : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-900'
                   }`}
                 >
-                  <span>📋</span>
+                  <span aria-hidden="true">📋</span>
                   <span>Diagnóstico y Resumen</span>
                 </button>
 
                 <button
+                  type="button"
+                  role="tab"
+                  id="ficha-tab-fotos"
+                  aria-selected={activeTab === 'fotos'}
+                  aria-controls="ficha-panel-fotos"
+                  tabIndex={activeTab === 'fotos' ? 0 : -1}
                   onClick={() => setActiveTab('fotos')}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     activeTab === 'fotos'
@@ -155,7 +196,7 @@ export default function FichaObraModal({ cui, onClose }) {
                       : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-900'
                   }`}
                 >
-                  <Camera className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+                  <Camera className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" aria-hidden="true" />
                   <span>Fotos en Terreno</span>
                   {totalFotos > 0 && (
                     <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
@@ -167,6 +208,12 @@ export default function FichaObraModal({ cui, onClose }) {
                 </button>
 
                 <button
+                  type="button"
+                  role="tab"
+                  id="ficha-tab-hitos"
+                  aria-selected={activeTab === 'hitos'}
+                  aria-controls="ficha-panel-hitos"
+                  tabIndex={activeTab === 'hitos' ? 0 : -1}
                   onClick={() => setActiveTab('hitos')}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     activeTab === 'hitos'
@@ -174,7 +221,7 @@ export default function FichaObraModal({ cui, onClose }) {
                       : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-900'
                   }`}
                 >
-                  <Clock className="w-3.5 h-3.5" />
+                  <Clock className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Línea de Tiempo & Metas</span>
                   {totalComponentes > 0 && (
                     <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
@@ -186,6 +233,12 @@ export default function FichaObraModal({ cui, onClose }) {
                 </button>
 
                 <button
+                  type="button"
+                  role="tab"
+                  id="ficha-tab-contratos"
+                  aria-selected={activeTab === 'contratos'}
+                  aria-controls="ficha-panel-contratos"
+                  tabIndex={activeTab === 'contratos' ? 0 : -1}
                   onClick={() => setActiveTab('contratos')}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     activeTab === 'contratos'
@@ -193,7 +246,7 @@ export default function FichaObraModal({ cui, onClose }) {
                       : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-900'
                   }`}
                 >
-                  <Building2 className="w-3.5 h-3.5" />
+                  <Building2 className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Contratos & Alertas</span>
                   {totalAlertasSSI > 0 && (
                     <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-600 text-white shadow-sm flex items-center gap-1 animate-pulse">
@@ -211,6 +264,12 @@ export default function FichaObraModal({ cui, onClose }) {
                 </button>
 
                 <button
+                  type="button"
+                  role="tab"
+                  id="ficha-tab-documentos"
+                  aria-selected={activeTab === 'documentos'}
+                  aria-controls="ficha-panel-documentos"
+                  tabIndex={activeTab === 'documentos' ? 0 : -1}
                   onClick={() => setActiveTab('documentos')}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     activeTab === 'documentos'
@@ -218,14 +277,20 @@ export default function FichaObraModal({ cui, onClose }) {
                       : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-900'
                   }`}
                 >
-                  <FileText className="w-3.5 h-3.5" />
+                  <FileText className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Documentos & MEF</span>
                 </button>
               </div>
 
               {/* ==================== TAB 1: RESUMEN CIUDADANO ==================== */}
               {activeTab === 'resumen' && (
-                <div className="space-y-5 animate-in fade-in duration-150">
+                <div
+                  role="tabpanel"
+                  id="ficha-panel-resumen"
+                  aria-labelledby="ficha-tab-resumen"
+                  tabIndex={0}
+                  className="space-y-5 animate-in fade-in duration-150 focus:outline-none"
+                >
                   {/* Diagnóstico para el Ciudadano: ¿Cómo va esta obra? */}
                   <div className="bg-slate-50 dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-5 shadow-sm dark:shadow-lg space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -762,14 +827,26 @@ export default function FichaObraModal({ cui, onClose }) {
 
               {/* ==================== TAB 2: FOTOS EN TERRENO & AVANCE MENSUAL ==================== */}
               {activeTab === 'fotos' && (
-                <div className="space-y-6 animate-in fade-in duration-150">
+                <div
+                  role="tabpanel"
+                  id="ficha-panel-fotos"
+                  aria-labelledby="ficha-tab-fotos"
+                  tabIndex={0}
+                  className="space-y-6 animate-in fade-in duration-150 focus:outline-none"
+                >
                   <GaleriaFotosObra fotos={fotosObra} cui={obra.cui} />
                 </div>
               )}
 
               {/* ==================== TAB 3: LÍNEA DE TIEMPO & METAS ==================== */}
               {activeTab === 'hitos' && (
-                <div className="space-y-6 animate-in fade-in duration-150">
+                <div
+                  role="tabpanel"
+                  id="ficha-panel-hitos"
+                  aria-labelledby="ficha-tab-hitos"
+                  tabIndex={0}
+                  className="space-y-6 animate-in fade-in duration-150 focus:outline-none"
+                >
                   <LineaTiempoProyecto
                     lineaTiempo={obra.linea_tiempo}
                     componentes={obra.ejecucion_por_componentes}
@@ -782,7 +859,13 @@ export default function FichaObraModal({ cui, onClose }) {
 
               {/* ==================== TAB 4: CONTRATISTAS & ALERTAS ==================== */}
               {activeTab === 'contratos' && (
-                <div className="space-y-5 animate-in fade-in duration-150">
+                <div
+                  role="tabpanel"
+                  id="ficha-panel-contratos"
+                  aria-labelledby="ficha-tab-contratos"
+                  tabIndex={0}
+                  className="space-y-5 animate-in fade-in duration-150 focus:outline-none"
+                >
                   {/* Evaluación de Riesgo y Alertas */}
                   {obra.evaluacion_riesgo && (
                     <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xs">
@@ -968,7 +1051,13 @@ export default function FichaObraModal({ cui, onClose }) {
 
               {/* ==================== TAB 5: DOCUMENTOS & MEF ==================== */}
               {activeTab === 'documentos' && (
-                <div className="space-y-5 animate-in fade-in duration-150">
+                <div
+                  role="tabpanel"
+                  id="ficha-panel-documentos"
+                  aria-labelledby="ficha-tab-documentos"
+                  tabIndex={0}
+                  className="space-y-5 animate-in fade-in duration-150 focus:outline-none"
+                >
                   {/* Documentación Oficial Descargable Generada */}
                   <div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
