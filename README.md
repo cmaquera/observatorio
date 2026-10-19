@@ -142,6 +142,13 @@ Cada obra cuenta con un expediente interactivo estructurado en pestañas:
 ### 8. 📥 Exportación Masiva a CSV
 - Descarga de datasets filtrados con codificación UTF-8 con BOM para apertura inmediata en Microsoft Excel, Power BI o Python.
 
+### 9. ♿ Semántica HTML5 y Accesibilidad Integral (WAI-ARIA)
+- **Estructura Semántica Estándar**: Reemplazo de contenedores genéricos por etiquetas nativas HTML5 (`<main>`, `<nav>`, `<header>`, `<footer>`, `<section>`, `<article>`, `<aside>`, `<figure>`, `<figcaption>`, `<time>`) conforme a las directrices de MDN Web Docs y W3Schools.
+- **Navegación Asistiva y Lectores de Pantalla**: Enlace de salto rápido (*Skip Link*) `#main-content`, formularios de búsqueda con `<label className="sr-only">`, tablas de datos con `<caption>` y `<th scope="col">`, y regiones activas con `role="status"` y `role="alert"`.
+- **Patrón de Modales y Pestañas Accesibles**: Diálogos modales con `role="dialog"`, `aria-modal="true"`, escucha global de teclado (`Escape`) y navegación de pestañas según el patrón WAI-ARIA (`role="tablist"`, `role="tab"`, `role="tabpanel"` con `aria-selected` y `aria-controls`).
+- **Navegación Total por Teclado**: Soporte completo de foco accesible y activación (`Enter` / `Espacio`) en todas las tarjetas de obras, alertas de contraloría, filtros por botón y controles de zoom táctico del mapa.
+- **Cero Regresión Visual**: Preservación matemática y estética del 100% del diseño, espaciados Tailwind, animaciones y compatibilidad completa en modo claro y oscuro.
+
 ---
 
 ## 🏛️ Arquitectura del Sistema

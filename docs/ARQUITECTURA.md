@@ -158,3 +158,21 @@ Construido como una Single Page Application (SPA) modular y reactiva:
 - **`CriticalProjects.jsx`**: Carrusel y lista destacada de obras con mayor Índice de Severidad de Riesgo.
 - **`AllObrasTable.jsx`**: Tabla interactiva con ordenamiento multi-columna, badges de criticidad y paginación rápida.
 - **`ContratistasTable.jsx`**: Directorio de contratistas y consorcios con montos adjudicados en el SEACE.
+
+### 5.1 Arquitectura Semántica HTML5 y Estándar de Accesibilidad (WAI-ARIA)
+
+Para garantizar la universalidad de acceso a la información pública, la plataforma implementa una arquitectura semántica estricta basada en las recomendaciones de **W3Schools Semantic Elements** y el estándar **WAI-ARIA de MDN Web Docs**, asegurando compatibilidad completa con lectores de pantalla y navegación por teclado sin alterar el diseño visual:
+
+| Componente | Landmark / Etiqueta HTML5 | Atributos WAI-ARIA / Accesibilidad | Propósito Técnico |
+| :--- | :--- | :--- | :--- |
+| **`Navbar.jsx`** | `<header>`, `<nav>`, `<form role="search">` | `aria-label`, `aria-current="page"`, `<label className="sr-only">` | Identificación de navegación primaria y formulario de búsqueda accesible. |
+| **`App.jsx`** | `<main id="main-content">`, `<a>` (skip link) | `className="sr-only focus:not-sr-only"`, `role="status"` | Salto rápido al contenido principal para lectores y anuncios de estado en vivo. |
+| **`GeoFilterBar.jsx`** | `<section aria-labelledby="...">` | `role="status"`, `role="alert"`, `<label className="sr-only">` | Selectores territoriales con etiquetas accesibles y live regions para GPS. |
+| **`MetricCards.jsx`** / **`CriticalProjects.jsx`** | `<section>`, `<header>`, `<article>`, `<footer>` | `role="button"`, `tabIndex={0}`, `onKeyDown`, `aria-expanded` | Tarjetas de auditoría como artículos navegables y activables por teclado. |
+| **`SectorDistribution.jsx`** | `<section>`, `<article>` | `role="progressbar"`, `aria-valuenow`, `aria-valuemin/max` | Indicadores de progreso para la distribución presupuestal sectorial. |
+| **`AllObrasTable.jsx`** / **`ContratistasTable.jsx`** | `<section>`, `<table>`, `<caption>` | `<th scope="col">`, `role="status"`, `<nav aria-label="...">` | Tablas con encabezados semánticos accesibles y paginación estructurada. |
+| **`FichaObraModal.jsx`** / **`DocumentStrategyModal.jsx`** | `<div role="dialog">` | `aria-modal="true"`, `role="tablist"`, `role="tab"`, `role="tabpanel"` | Diálogos modales con trampa de foco, cierre con `Escape` y patrón de pestañas. |
+| **`GaleriaFotosObra.jsx`** | `<figure>`, `<figcaption>`, `<time>` | `role="dialog"`, `aria-modal="true"`, `tabIndex={0}` en fotos | Evidencia fotográfica con fechas semánticas y visor en pantalla completa accesible. |
+| **`LineaTiempoProyecto.jsx`** | `<ol>`, `<li>`, `<time>` | `role="progressbar"`, `aria-expanded`, `aria-controls` | Línea de tiempo cronológica secuencial y acordeones controlados por estado. |
+| **`CommandCenterView.jsx`** | `<aside>`, `<article>` | `role="button"`, `tabIndex={0}`, `aria-label` en controles de zoom | Barras tácticas laterales y controles de mapa con nombres accesibles claros. |
+
