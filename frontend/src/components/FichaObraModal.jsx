@@ -103,6 +103,10 @@ export default function FichaObraModal({ cui, onClose }) {
   const totalContratos = obra?.contratos?.length || 0;
   const totalComponentes = obra?.ejecucion_por_componentes?.length || 0;
   const totalAlertasSSI = obra?.alertas_ssi?.length || 0;
+  const esEnInicio = obra ? (
+    obra.evaluacion_riesgo?.nivel_alerta === 'SIN_DATOS' ||
+    ((!obra.avance_fisico || obra.avance_fisico === 0) && (!obra.avance_financiero || obra.avance_financiero === 0) && totalContratos === 0)
+  ) : false;
 
   return (
     <div
@@ -444,6 +448,19 @@ export default function FichaObraModal({ cui, onClose }) {
                           <span>1. Plazo de Entrega</span>
                         </div>
                         {(() => {
+                          if (esEnInicio) {
+                            return (
+                              <div>
+                                <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-bold border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                                  En Inicio / En Cartera
+                                </span>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                                  Proyecto viable en espera de asignación presupuestal activa. No cuenta con inicio de ejecución física.
+                                </p>
+                              </div>
+                            );
+                          }
+
                           const ultSitu = (obra.datos_en_vivo_mef?.ultimo_estado_situacional_f12b || '').toUpperCase();
                           const esControversia = ultSitu.includes('CONTROVERSIA') || ultSitu.includes('INCUMPLIMIENTO') || ultSitu.includes('ARBITRAJE') ||
                             obra.linea_tiempo?.hitos?.some(h => h.estado?.toLowerCase().includes('controversia'));
@@ -526,7 +543,16 @@ export default function FichaObraModal({ cui, onClose }) {
                           <DollarSign className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0" />
                           <span>2. Dinero vs Construcción</span>
                         </div>
-                        {obra.diferencia_avance > 10 ? (
+                        {esEnInicio ? (
+                          <div>
+                            <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-bold border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                              Sin desembolsos financieros
+                            </span>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                              Presupuesto devengado: <strong className="text-slate-700 dark:text-slate-300">S/ 0.00</strong>. No se han girado fondos públicos para ejecución de obras.
+                            </p>
+                          </div>
+                        ) : obra.diferencia_avance > 10 ? (
                           <div>
                             <span className="inline-block px-2 py-0.5 rounded bg-red-50 text-red-700 text-xs font-bold border border-red-200 dark:bg-red-950/80 dark:text-red-400 dark:border-red-800">
                               Se pagó +{obra.diferencia_avance.toFixed(0)}% más de lo hecho
@@ -556,27 +582,43 @@ export default function FichaObraModal({ cui, onClose }) {
                           </div>
                           <span className="text-[10px] font-mono text-cyan-500">Meta &gt;80%</span>
                         </div>
-                        <div>
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-xl font-black text-slate-900 dark:text-white">
-                              {Math.max(0, Math.min(100, 100 - (obra.diferencia_avance || 0))).toFixed(1)}%
-                            </span>
-                            <span className={`text-[11px] font-bold ${
-                              (obra.diferencia_avance || 0) <= 5
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : (obra.diferencia_avance || 0) <= 15
-                                ? 'text-amber-600 dark:text-amber-400'
-                                : 'text-rose-600 dark:text-rose-400'
-                            }`}>
-                              {(obra.diferencia_avance || 0) <= 5 ? 'Óptima' : (obra.diferencia_avance || 0) <= 15 ? 'Aceptable' : 'Riesgo de Desvío'}
-                            </span>
+                        {esEnInicio ? (
+                          <div>
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-xl font-black text-slate-500 dark:text-slate-400">
+                                0.0%
+                              </span>
+                              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                                Fase Previa
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                              Sin ejecución física ni financiera iniciada. Eficiencia evaluable al inicio de obras.
+                            </p>
                           </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                            {obra.diferencia_avance > 15
-                              ? 'Existe desbalance de gasto sobre lo construido en terreno.'
-                              : 'Ritmo de gasto sincronizado con el avance físico.'}
-                          </p>
-                        </div>
+                        ) : (
+                          <div>
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-xl font-black text-slate-900 dark:text-white">
+                                {Math.max(0, Math.min(100, 100 - (obra.diferencia_avance || 0))).toFixed(1)}%
+                              </span>
+                              <span className={`text-[11px] font-bold ${
+                                (obra.diferencia_avance || 0) <= 5
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : (obra.diferencia_avance || 0) <= 15
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-rose-600 dark:text-rose-400'
+                              }`}>
+                                {(obra.diferencia_avance || 0) <= 5 ? 'Óptima' : (obra.diferencia_avance || 0) <= 15 ? 'Aceptable' : 'Riesgo de Desvío'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                              {obra.diferencia_avance > 15
+                                ? 'Existe desbalance de gasto sobre lo construido en terreno.'
+                                : 'Ritmo de gasto sincronizado con el avance físico.'}
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       {/* 4. Documentos Oficiales y Supervisión */}
@@ -729,9 +771,13 @@ export default function FichaObraModal({ cui, onClose }) {
                     <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 p-3.5 rounded-2xl shadow-xs">
                       <span className="block text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">Plazo y Culminación</span>
                       <span className="text-sm font-bold text-slate-900 dark:text-white block">
-                        {obra.fec_fin_ejec_fisica ? obra.fec_fin_ejec_fisica : 'No especificado'}
+                        {obra.fec_fin_ejec_fisica ? obra.fec_fin_ejec_fisica : (esEnInicio ? 'Fase inicial' : 'No especificado')}
                       </span>
-                      {(obra.avance_fisico >= 95 || obra.datos_en_vivo_mef?.en_funcionamiento || obra.linea_tiempo?.hitos?.some(h => h.nombre?.includes('CULMINAC') && h.nivel === 'COMPLETADO')) ? (
+                      {esEnInicio ? (
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold block">
+                          En Cartera (Sin inicio)
+                        </span>
+                      ) : (obra.avance_fisico >= 95 || obra.datos_en_vivo_mef?.en_funcionamiento || obra.linea_tiempo?.hitos?.some(h => h.nombre?.includes('CULMINAC') && h.nivel === 'COMPLETADO')) ? (
                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block">
                           Culminada (En Liquidación)
                         </span>
@@ -819,7 +865,17 @@ export default function FichaObraModal({ cui, onClose }) {
                         {/* 1. Servicio a la población */}
                         <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 p-3 rounded-xl shadow-xs">
                           <span className="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">¿Brinda servicio a la población?</span>
-                          {obra.datos_en_vivo_mef.ultimo_estado_situacional_f12b?.toLowerCase().includes('controversia') ? (
+                          {esEnInicio ? (
+                            <div>
+                              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 dark:text-slate-300 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-300 dark:border-slate-700">
+                                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                                <span>SIN INICIO DE OBRAS</span>
+                              </span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1 leading-tight">
+                                Proyecto en cartera / fase previa de formulación o expediente sin obras en ejecución.
+                              </span>
+                            </div>
+                          ) : obra.datos_en_vivo_mef.ultimo_estado_situacional_f12b?.toLowerCase().includes('controversia') ? (
                             <div>
                               <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-950/60 px-2 py-0.5 rounded border border-red-200 dark:border-red-800">
                                 <AlertCircle className="w-3.5 h-3.5" />
@@ -865,16 +921,20 @@ export default function FichaObraModal({ cui, onClose }) {
                         <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 p-3 rounded-xl shadow-xs">
                           <span className="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">Liquidación y Cierre (F09)</span>
                           <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                            {obra.datos_en_vivo_mef.estado_cierre === 'SI'
+                            {esEnInicio
+                              ? 'NO APLICA (Sin ejecución)'
+                              : obra.datos_en_vivo_mef.estado_cierre === 'SI'
                               ? 'CERRADO (F09 Aprobado)'
                               : (obra.datos_en_vivo_mef.estado_cierre === 'EN_TRAMITE_F09' || obra.datos_en_vivo_mef.tiene_informe_cierre)
                               ? 'F09 EN REVISIÓN DE LIQUIDACIÓN'
                               : obra.datos_en_vivo_mef.estado_cierre === 'NO'
                               ? 'PENDIENTE DE CIERRE FORMAL'
-                              : (obra.datos_en_vivo_mef.estado_cierre || 'En trámite')}
+                              : (obra.datos_en_vivo_mef.estado_cierre || 'No registrado')}
                           </span>
                           <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-tight">
-                            {obra.datos_en_vivo_mef.tiene_informe_cierre
+                            {esEnInicio
+                              ? 'La inversión no ha culminado obras físicas ni cuenta con proceso de liquidación habilitado.'
+                              : obra.datos_en_vivo_mef.tiene_informe_cierre
                               ? 'F09 registrado; expediente técnico-financiero en trámite de revisión por el sector'
                               : (obra.datos_en_vivo_mef.ultimo_estado_situacional_f12b?.toLowerCase().includes('controversia'))
                               ? 'Sin Formato 09 emitido en el MEF; liquidación paralizada por proceso legal'
@@ -899,7 +959,7 @@ export default function FichaObraModal({ cui, onClose }) {
                             </div>
                           ) : (
                             <span className="text-xs font-bold text-purple-700 dark:text-purple-300 block">
-                              {obra.datos_en_vivo_mef.modalidad_ejecucion || 'No especificada'}
+                              {obra.datos_en_vivo_mef.modalidad_ejecucion || (esEnInicio ? 'Pendiente de licitación / asignación' : 'No especificada')}
                             </span>
                           )}
                           {obra.datos_en_vivo_mef.monto_expediente_tecnico > 0 && (
@@ -1313,7 +1373,9 @@ export default function FichaObraModal({ cui, onClose }) {
                               </span>
                             </div>
                             <span className="text-[10px] text-slate-500 block">
-                              {obra.datos_en_vivo_mef?.ultimo_estado_situacional_f12b?.toLowerCase().includes('controversia')
+                              {esEnInicio
+                                ? 'No aplica: Obra no ejecutada'
+                                : obra.datos_en_vivo_mef?.ultimo_estado_situacional_f12b?.toLowerCase().includes('controversia')
                                 ? 'En controversia / Sin Formato 09'
                                 : 'Pendiente de liquidación técnica'}
                             </span>

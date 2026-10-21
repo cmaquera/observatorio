@@ -89,6 +89,8 @@ def evaluar_obra(
     # Clasificación
     if avance_fisico == 0 and avance_financiero == 0 and not alerta_plazo_vencido:
         nivel_alerta = "SIN_DATOS"
+        score_total = 0.0
+        monto_en_riesgo = 0.0
     elif es_culminada:
         nivel_alerta = "NORMAL"
         score_total = min(score_total, 15.0)
@@ -124,7 +126,9 @@ def evaluar_obra(
         if alerta_sin_reporte:
             razones.append(f"Información desactualizada: {dias_sin_reporte} días sin declaración en Banco de Inversiones.")
 
-    if not razones:
+    if nivel_alerta == "SIN_DATOS":
+        justificacion = "Inversión en fase inicial o cartera pre-ejecución. No registra desembolsos financieros ni inicio de obras físicas."
+    elif not razones:
         justificacion = "Obra con ejecución y cronograma dentro de los parámetros esperados."
     else:
         justificacion = " ".join(razones)
@@ -157,6 +161,8 @@ def aplicar_filtro_nivel_alerta(query: Any, column_alerta: Any, nivel_alerta: st
     if alerta_upper in ("ALTO", "OBSERVADAS", "OBSERVADA"):
         return query.filter(column_alerta.in_(["ALTO", "MEDIO"]))
     if alerta_upper in ("NORMAL", "EN_PLAZO", "EN PLAZO"):
-        return query.filter(column_alerta.in_(["NORMAL", "BAJO", "SIN_DATOS"]))
+        return query.filter(column_alerta.in_(["NORMAL", "BAJO"]))
+    if alerta_upper in ("SIN_DATOS", "EN_INICIO", "EN INICIO", "INICIO"):
+        return query.filter(column_alerta == "SIN_DATOS")
     return query.filter(column_alerta == alerta_upper)
 

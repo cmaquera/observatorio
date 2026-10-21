@@ -31,6 +31,7 @@ def get_kpis(
             monto_en_riesgo=0.0,
             total_criticos=0,
             total_alertas=0,
+            total_en_inicio=0,
             desfase_promedio_pp=0.0,
             plazo_vencido_count=0
         )
@@ -40,6 +41,7 @@ def get_kpis(
     
     criticos_count = query.filter(EvaluacionRiesgo.nivel_alerta == "CRITICO").count()
     alertas_count = query.filter(EvaluacionRiesgo.nivel_alerta.in_(["CRITICO", "ALTO", "MEDIO"])).count()
+    en_inicio_count = query.filter(EvaluacionRiesgo.nivel_alerta == "SIN_DATOS").count()
     
     # Desfase promedio (solo obras que tienen avance declarado)
     obras_con_avance = query.filter(Inversion.costo_actualizado > 0)
@@ -53,6 +55,7 @@ def get_kpis(
         monto_en_riesgo=round(monto_en_riesgo, 2),
         total_criticos=criticos_count,
         total_alertas=alertas_count,
+        total_en_inicio=en_inicio_count,
         desfase_promedio_pp=round(desfase_prom, 2),
         plazo_vencido_count=plazo_vencido_count
     )

@@ -231,5 +231,6 @@ class DashboardKpisOut(BaseModel):
     monto_en_riesgo: float
     total_criticos: int
     total_alertas: int
+    total_en_inicio: int = 0
     desfase_promedio_pp: float
     plazo_vencido_count: int

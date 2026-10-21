@@ -274,7 +274,7 @@ function TacticalSpiderfyMarkers({
                     {p.nombre}
                   </div>
                   <div className="text-[10px] font-bold mt-0.5" style={{ color: markerColor }}>
-                    {p.nivel_alerta === 'CRITICO' ? 'PELIGRO CRÍTICO' : (p.nivel_alerta === 'ALTO' || p.nivel_alerta === 'MEDIO') ? 'OBSERVADA' : 'EN PLAZO'}
+                    {p.nivel_alerta === 'CRITICO' ? 'PELIGRO CRÍTICO' : (p.nivel_alerta === 'ALTO' || p.nivel_alerta === 'MEDIO') ? 'OBSERVADA' : (p.nivel_alerta === 'SIN_DATOS' || p.nivel_alerta === 'EN_INICIO') ? 'EN INICIO' : 'EN PLAZO'}
                   </div>
                 </div>
               </Tooltip>
@@ -402,7 +402,7 @@ function TacticalSpiderfyMarkers({
                           {p.nombre}
                         </div>
                         <div className="text-[10px] font-bold mt-0.5" style={{ color: markerColor }}>
-                          {p.nivel_alerta === 'CRITICO' ? 'PELIGRO CRÍTICO' : (p.nivel_alerta === 'ALTO' || p.nivel_alerta === 'MEDIO') ? 'OBSERVADA' : 'EN PLAZO'}
+                          {p.nivel_alerta === 'CRITICO' ? 'PELIGRO CRÍTICO' : (p.nivel_alerta === 'ALTO' || p.nivel_alerta === 'MEDIO') ? 'OBSERVADA' : (p.nivel_alerta === 'SIN_DATOS' || p.nivel_alerta === 'EN_INICIO') ? 'EN INICIO' : 'EN PLAZO'}
                         </div>
                       </div>
                     </Tooltip>
@@ -435,9 +435,16 @@ function getSelectionStyle(nivel_alerta) {
         glow: 'shadow-[0_0_16px_rgba(249,115,22,0.25)]',
         colorHex: '#f97316'
       };
+    case 'SIN_DATOS':
+    case 'EN_INICIO':
+      return {
+        ring: 'border-2 border-slate-400 ring-2 ring-slate-400/25 bg-slate-50/90 dark:bg-slate-900/60 text-slate-800 dark:text-slate-200 shadow-sm',
+        badge: 'bg-slate-100 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600',
+        glow: 'shadow-[0_0_16px_rgba(148,163,184,0.25)]',
+        colorHex: '#94a3b8'
+      };
     case 'NORMAL':
     case 'BAJO':
-    case 'SIN_DATOS':
     default:
       return {
         ring: 'border-2 border-emerald-500 ring-2 ring-emerald-500/25 bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-100 shadow-sm',
@@ -469,7 +476,8 @@ export default function CommandCenterView({
     total: 0,
     criticos: 0,
     observadas: 0,
-    enPlazo: 0
+    enPlazo: 0,
+    enInicio: 0
   });
 
   const [mapCenter, setMapCenter] = useState([-13.5319, -71.9675]);
@@ -524,12 +532,14 @@ export default function CommandCenterView({
       const crit = kpis.total_criticos || 0;
       const totAlertas = kpis.total_alertas || 0;
       const obs = Math.max(0, totAlertas - crit);
-      const enPlazo = Math.max(0, tot - totAlertas);
+      const enInicio = kpis.total_en_inicio || 0;
+      const enPlazo = Math.max(0, tot - totAlertas - enInicio);
       setZoneCounts({
         total: tot,
         criticos: crit,
         observadas: obs,
-        enPlazo: enPlazo
+        enPlazo: enPlazo,
+        enInicio: enInicio
       });
     }
   }, [kpis]);
@@ -566,16 +576,20 @@ export default function CommandCenterView({
           let crit = 0;
           let obs = 0;
           let normal = 0;
+          let enInicio = 0;
           pointsData.forEach((p) => {
+            const isInicio = p.nivel_alerta === 'SIN_DATOS' || p.nivel_alerta === 'EN_INICIO' || ((!p.avance_fisico || p.avance_fisico === 0) && (!p.avance_financiero || p.avance_financiero === 0));
             if (p.nivel_alerta === 'CRITICO') crit++;
             else if (p.nivel_alerta === 'ALTO' || p.nivel_alerta === 'MEDIO' || (p.diferencia_avance && p.diferencia_avance > 15)) obs++;
+            else if (isInicio) enInicio++;
             else normal++;
           });
           setZoneCounts({
             total: pointsData.length,
             criticos: crit,
             observadas: obs,
-            enPlazo: normal
+            enPlazo: normal,
+            enInicio: enInicio
           });
         }
 
@@ -693,7 +707,9 @@ export default function CommandCenterView({
         lng: foundInList.longitud,
         alerta_desc:
           foundInList.evaluacion_riesgo?.motivo_alerta ||
-          (foundInList.diferencia_avance > 15
+          (foundInList.evaluacion_riesgo?.nivel_alerta === 'SIN_DATOS' || ((!foundInList.avance_fisico || foundInList.avance_fisico === 0) && (!foundInList.avance_financiero || foundInList.avance_financiero === 0))
+            ? 'Inversión en fase inicial o cartera pre-ejecución. No registra desembolsos ni inicio de obra física.'
+            : foundInList.diferencia_avance > 15
             ? 'Alerta por desfase financiero sobre avance físico real'
             : 'Proyecto en ejecución dentro de parámetros previstos')
       };
@@ -715,9 +731,11 @@ export default function CommandCenterView({
         lat: foundInPoints.lat,
         lng: foundInPoints.lng,
         alerta_desc:
-          foundInPoints.diferencia_avance > 15
+          (foundInPoints.nivel_alerta === 'SIN_DATOS' || foundInPoints.nivel_alerta === 'EN_INICIO' || ((!foundInPoints.avance_fisico || foundInPoints.avance_fisico === 0) && (!foundInPoints.avance_financiero || foundInPoints.avance_financiero === 0))
+            ? 'Inversión en fase inicial o cartera pre-ejecución. Sin desembolsos ni inicio de obras.'
+            : foundInPoints.diferencia_avance > 15
             ? 'Alerta por desfase financiero sobre avance físico'
-            : 'En cronograma de ejecución regular'
+            : 'En cronograma de ejecución regular')
       };
     }
     return null;
@@ -807,9 +825,11 @@ export default function CommandCenterView({
       case 'ALTO':
       case 'MEDIO':
         return '#f97316'; // Naranja (Retraso / Observación)
+      case 'SIN_DATOS':
+      case 'EN_INICIO':
+        return '#94a3b8'; // Slate / Gris (En Inicio / En Cartera)
       case 'NORMAL':
       case 'BAJO':
-      case 'SIN_DATOS':
       default:
         return '#10b981'; // Verde (En Plazo)
     }
@@ -902,7 +922,7 @@ export default function CommandCenterView({
           </div>
         </div>
 
-        {/* Botones de filtro de estado unificados (Todas, Críticas, Observadas, En Plazo) */}
+        {/* Botones de filtro de estado unificados (Todas, Críticas, Observadas, En Plazo, En Inicio) */}
         <div className="flex items-center gap-1 sm:gap-1.5 bg-slate-100 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
           <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 px-2 uppercase tracking-wider hidden xl:inline">
             Estado:
@@ -952,6 +972,18 @@ export default function CommandCenterView({
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500"></span>
             En Plazo ({zoneCounts.enPlazo})
+          </button>
+          <button
+            onClick={() => handleToggleAlerta('SIN_DATOS')}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+              filters.nivel_alerta === 'SIN_DATOS' || filters.nivel_alerta === 'EN_INICIO'
+                ? 'bg-slate-200 text-slate-800 border border-slate-300 shadow-sm ring-1 ring-slate-400/40 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600 dark:ring-slate-500/50'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/40'
+            }`}
+            title="Filtrar inversiones en cartera / fase inicial sin ejecución física ni financiera iniciada"
+          >
+            <span className="w-2 h-2 rounded-full bg-slate-400 shadow-xs shadow-slate-400"></span>
+            En Inicio ({zoneCounts.enInicio})
           </button>
         </div>
       </div>
@@ -1011,8 +1043,9 @@ export default function CommandCenterView({
                   const ev = p.evaluacion_riesgo || {};
                   const isCritical = ev.nivel_alerta === 'CRITICO';
                   const isAlert = ev.nivel_alerta === 'ALTO' || ev.nivel_alerta === 'MEDIO';
+                  const isInicio = ev.nivel_alerta === 'SIN_DATOS' || ev.nivel_alerta === 'EN_INICIO' || ((!p.avance_fisico || p.avance_fisico === 0) && (!p.avance_financiero || p.avance_financiero === 0));
                   const cat = categorizeObra(p);
-                  const alertaNivel = isCritical ? 'CRITICO' : isAlert ? 'ALTO' : 'NORMAL';
+                  const alertaNivel = isCritical ? 'CRITICO' : isAlert ? 'ALTO' : isInicio ? 'SIN_DATOS' : 'NORMAL';
                   const selStyle = getSelectionStyle(alertaNivel);
 
                   return (
@@ -1055,10 +1088,12 @@ export default function CommandCenterView({
                               ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/40 animate-pulse'
                               : isAlert
                               ? 'bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/40'
+                              : isInicio
+                              ? 'bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/40'
                               : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
                           }`}
                         >
-                          {isCritical ? 'CRÍTICO' : isAlert ? 'OBSERVADA' : 'EN PLAZO'}
+                          {isCritical ? 'CRÍTICO' : isAlert ? 'OBSERVADA' : isInicio ? 'EN INICIO' : 'EN PLAZO'}
                         </span>
                       </div>
 
@@ -1073,8 +1108,8 @@ export default function CommandCenterView({
                           <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400">
                             {formatMoney(p.costo_actualizado)}
                           </div>
-                          <div className={`text-xs font-black ${isCritical ? 'text-rose-600 dark:text-rose-400' : isAlert ? 'text-orange-600 dark:text-orange-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                            {p.diferencia_avance > 0 ? `+${p.diferencia_avance.toFixed(1)} pp brecha` : 'Sin desvío'}
+                          <div className={`text-xs font-black ${isCritical ? 'text-rose-600 dark:text-rose-400' : isAlert ? 'text-orange-600 dark:text-orange-400' : isInicio ? 'text-slate-600 dark:text-slate-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                            {isInicio ? 'Fase pre-ejecución' : p.diferencia_avance > 0 ? `+${p.diferencia_avance.toFixed(1)} pp brecha` : 'Sin desvío'}
                           </div>
                         </div>
                       </div>
@@ -1211,6 +1246,8 @@ export default function CommandCenterView({
                   ? 'border-rose-500 ring-2 ring-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.35)]'
                   : (activeObra.nivel_alerta === 'ALTO' || activeObra.nivel_alerta === 'MEDIO')
                   ? 'border-orange-400 ring-2 ring-orange-400/30 shadow-[0_0_20px_rgba(249,115,22,0.35)]'
+                  : (activeObra.nivel_alerta === 'SIN_DATOS' || activeObra.nivel_alerta === 'EN_INICIO')
+                  ? 'border-slate-400 ring-2 ring-slate-400/30 shadow-[0_0_20px_rgba(148,163,184,0.35)]'
                   : 'border-emerald-400 ring-2 ring-emerald-400/30 shadow-[0_0_20px_rgba(16,185,129,0.35)]'
               }`}>
                 {/* Encabezado con CUI, Categoría y Botón de Cerrar */}
@@ -1233,7 +1270,7 @@ export default function CommandCenterView({
                         border: `1px solid ${getMarkerColor(activeObra.nivel_alerta)}60`
                       }}
                     >
-                      {activeObra.nivel_alerta === 'CRITICO' ? 'PELIGRO CRÍTICO' : (activeObra.nivel_alerta === 'ALTO' || activeObra.nivel_alerta === 'MEDIO') ? 'OBSERVADA' : 'EN PLAZO'}
+                      {activeObra.nivel_alerta === 'CRITICO' ? 'PELIGRO CRÍTICO' : (activeObra.nivel_alerta === 'ALTO' || activeObra.nivel_alerta === 'MEDIO') ? 'OBSERVADA' : (activeObra.nivel_alerta === 'SIN_DATOS' || activeObra.nivel_alerta === 'EN_INICIO') ? 'EN INICIO' : 'EN PLAZO'}
                     </span>
                     <button
                       onClick={() => setIsCardOpen(false)}
@@ -1325,25 +1362,44 @@ export default function CommandCenterView({
                     </div>
                     <div className="text-xs font-mono font-bold text-slate-800 dark:text-white mt-0.5">
                       {(() => {
+                        const isInicio = activeObra.nivel_alerta === 'SIN_DATOS' || activeObra.nivel_alerta === 'EN_INICIO' || ((!activeObra.avance_fisico || activeObra.avance_fisico === 0) && (!activeObra.avance_financiero || activeObra.avance_financiero === 0));
+                        if (isInicio) {
+                          return (
+                            <>
+                              <span>0.0%</span>
+                              <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400 ml-1.5">
+                                En Inicio / Cartera
+                              </span>
+                            </>
+                          );
+                        }
                         const eff = Math.max(0, Math.min(100, 100 - (activeObra.diferencia_avance || 0)));
-                        return `${eff.toFixed(1)}%`;
+                        return (
+                          <>
+                            <span>{eff.toFixed(1)}%</span>
+                            <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400 ml-1.5">
+                              {activeObra.diferencia_avance <= 5 ? 'Óptima' : activeObra.diferencia_avance <= 15 ? 'Aceptable' : 'Con desvío'}
+                            </span>
+                          </>
+                        );
                       })()}
-                      <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400 ml-1.5">
-                        {activeObra.diferencia_avance <= 5 ? 'Óptima' : activeObra.diferencia_avance <= 15 ? 'Aceptable' : 'Con desvío'}
-                      </span>
                     </div>
                   </div>
                   <div className="w-16 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full ${
-                        activeObra.diferencia_avance > 15
+                        (activeObra.nivel_alerta === 'SIN_DATOS' || activeObra.nivel_alerta === 'EN_INICIO' || ((!activeObra.avance_fisico || activeObra.avance_fisico === 0) && (!activeObra.avance_financiero || activeObra.avance_financiero === 0)))
+                          ? 'bg-slate-400'
+                          : activeObra.diferencia_avance > 15
                           ? 'bg-rose-500'
                           : activeObra.diferencia_avance > 5
                           ? 'bg-amber-400'
                           : 'bg-emerald-400'
                       }`}
                       style={{
-                        width: `${Math.max(5, Math.min(100, 100 - (activeObra.diferencia_avance || 0)))}%`
+                        width: (activeObra.nivel_alerta === 'SIN_DATOS' || activeObra.nivel_alerta === 'EN_INICIO' || ((!activeObra.avance_fisico || activeObra.avance_fisico === 0) && (!activeObra.avance_financiero || activeObra.avance_financiero === 0)))
+                          ? '0%'
+                          : `${Math.max(5, Math.min(100, 100 - (activeObra.diferencia_avance || 0)))}%`
                       }}
                     />
                   </div>
@@ -1432,6 +1488,10 @@ export default function CommandCenterView({
                 <span className="flex items-center gap-1.5 font-medium">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500"></span>
                   En Plazo
+                </span>
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-400 shadow-xs shadow-slate-400"></span>
+                  En Inicio
                 </span>
               </div>
               <span className="font-mono text-[10px] text-slate-500 hidden sm:inline">
