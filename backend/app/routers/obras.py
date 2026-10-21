@@ -14,6 +14,7 @@ from app.models import (
     InversionSimpleOut, InversionDetalleOut
 )
 from app.etl.mef_live_client import (
+    get_cached_mef_data,
     get_mef_live_data,
     sintetizar_linea_tiempo_ciudadana,
     download_mef_archivo
@@ -193,10 +194,16 @@ def get_archivo_mef(cui: str = Query(...), nroseg: int = Query(...), archivo: st
 
 
 @router.get("/{cui}", response_model=InversionDetalleOut)
-def get_obra_detalle(cui: str, db: Session = Depends(get_db)):
+def get_obra_detalle(
+    cui: str,
+    live: bool = Query(True, description="Si es True, consulta e hidrata datos en vivo del MEF/SEACE. Si es False, entrega la ficha local de inmediato."),
+    db: Session = Depends(get_db)
+):
     """
     Retorna la ficha técnica completa de la obra, incluyendo contratos SEACE,
     empresas adjudicatarias, documentos descargables y justificación de alertas.
+    Soporta carga progresiva: si live=False entrega la ficha local de inmediato (<5ms)
+    o aprovecha la memoria caché si ya fue consultada.
     """
     obra = (
         db.query(Inversion)
@@ -213,8 +220,15 @@ def get_obra_detalle(cui: str, db: Session = Depends(get_db)):
 
     out = InversionDetalleOut.model_validate(obra)
     try:
-        mef_data = get_mef_live_data(obra.cui)
+        # Si no se solicitó live, verificar primero si ya está en caché para responder al instante
+        mef_data = None
+        if not live:
+            mef_data = get_cached_mef_data(obra.cui)
+        else:
+            mef_data = get_mef_live_data(obra.cui)
+
         out.datos_en_vivo_mef = mef_data
+        out.sincronizado_en_vivo = bool(mef_data and mef_data.get("disponible"))
         if mef_data:
             out.ejecucion_por_componentes = mef_data.get("ejecucion_por_componentes")
             out.fotos_obra = mef_data.get("fotos_obra") or []

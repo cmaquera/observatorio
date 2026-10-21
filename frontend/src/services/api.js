@@ -42,8 +42,8 @@ export const getObras = async (params = {}) => {
   return res.data;
 };
 
-export const getObraDetalle = async (cui) => {
-  const res = await api.get(`/obras/${cui}`);
+export const getObraDetalle = async (cui, params = {}) => {
+  const res = await api.get(`/obras/${cui}`, { params });
   return res.data;
 };
 

@@ -85,6 +85,17 @@ def _parse_dotnet_date(d_val: Any) -> Optional[str]:
     return None
 
 
+def get_cached_mef_data(cui: str) -> Optional[Dict[str, Any]]:
+    """Devuelve los datos enriquecidos en caché si existen y no han expirado (< CACHE_TTL_SECONDS)."""
+    cui = str(cui).strip()
+    now = time.time()
+    with _CACHE_LOCK:
+        cached_entry = _CACHE.get(cui)
+        if cached_entry and (now - cached_entry["timestamp"] < CACHE_TTL_SECONDS):
+            return cached_entry["data"]
+    return None
+
+
 def get_mef_live_data(cui: str) -> Dict[str, Any]:
     """
     Obtiene los datos enriquecidos en tiempo real del MEF para un CUI.
@@ -95,10 +106,9 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
     now = time.time()
 
     # 1. Verificar caché de forma thread-safe
-    with _CACHE_LOCK:
-        cached_entry = _CACHE.get(cui)
-        if cached_entry and (now - cached_entry["timestamp"] < CACHE_TTL_SECONDS):
-            return cached_entry["data"]
+    cached_data = get_cached_mef_data(cui)
+    if cached_data is not None:
+        return cached_data
 
     # URLs oficiales directas (sin pasar por la pantalla con CAPTCHA)
     direct_urls = {
@@ -140,15 +150,22 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
     }
 
     try:
-        with ThreadPoolExecutor(max_workers=6) as pool:
+        def _safe_res(fut, default=None, timeout=3.5):
+            try:
+                return fut.result(timeout=timeout)
+            except Exception:
+                return default
+
+        with ThreadPoolExecutor(max_workers=7) as pool:
             fut_f12b = pool.submit(_fetch_f12b_api, cui)
             fut_hist = pool.submit(_fetch_historial_situacional_f12b, cui)
             fut_comp = pool.submit(_fetch_factor_productivo_accion, cui)
             fut_ssi = pool.submit(_fetch_det_inv_ssi, cui)
             fut_geo = pool.submit(fetch_geoinvierte_coords, cui)
+            fut_cierre = pool.submit(_fetch_informe_cierre, cui)
+            fut_seguim = pool.submit(_fetch_seguimiento_completo, cui)
 
-            f12b_data = fut_f12b.result()
-            snip_code = None
+            f12b_data = _safe_res(fut_f12b, None, timeout=3.0)
             if f12b_data:
                 result["disponible"] = True
                 result["modalidad_ejecucion"] = f12b_data.get("MODAL_EJEC")
@@ -157,19 +174,14 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
                 result["monto_expediente_tecnico"] = f12b_data.get("MTO_ET_SNIP") or f12b_data.get("MTO_ULT_ET")
                 result["ultimo_estado_situacional_f12b"] = f12b_data.get("ULT_ESTADO_SITUACIONAL")
                 result["porc_avance_fis_f12b"] = f12b_data.get("PORC_AVANCE_FIS")
-                if f12b_data.get("COD_SNIP"):
-                    snip_code = str(f12b_data.get("COD_SNIP")).strip()
 
-            avance_f12b_val = float(f12b_data.get("PORC_AVANCE_FIS") or 0.0) if f12b_data else None
-            fut_cierre = pool.submit(_fetch_informe_cierre, cui, snip_code)
-            fut_seguim = pool.submit(_fetch_seguimiento_completo, cui, avance_f12b_val)
-
-            hist_situ = fut_hist.result()
-            cierre_data = fut_cierre.result()
-            seguim_data = fut_seguim.result()
-            comp_items, comp_weighted = fut_comp.result()
-            det_ssi = fut_ssi.result()
-            geo_info = fut_geo.result()
+            hist_situ = _safe_res(fut_hist, [], timeout=3.0)
+            cierre_data = _safe_res(fut_cierre, None, timeout=3.0)
+            seguim_data = _safe_res(fut_seguim, None, timeout=3.5)
+            comp_res = _safe_res(fut_comp, (None, 0.0), timeout=3.0)
+            comp_items, comp_weighted = comp_res if isinstance(comp_res, (list, tuple)) and len(comp_res) == 2 else (None, 0.0)
+            det_ssi = _safe_res(fut_ssi, None, timeout=3.0)
+            geo_info = _safe_res(fut_geo, None, timeout=3.0)
 
         if hist_situ:
             result["disponible"] = True

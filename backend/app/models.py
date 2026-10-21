@@ -221,6 +221,7 @@ class InversionDetalleOut(InversionSimpleOut):
     ejecucion_por_componentes: Optional[List[Dict[str, Any]]] = None
     fotos_obra: List[Dict[str, Any]] = []
     alertas_ssi: List[Dict[str, Any]] = []
+    sincronizado_en_vivo: Optional[bool] = False
 
     model_config = ConfigDict(from_attributes=True)
 
