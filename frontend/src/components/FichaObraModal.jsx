@@ -1384,52 +1384,80 @@ export default function FichaObraModal({ cui, onClose }) {
                         </div>
                       )}
 
-                      <a
-                        href={`https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepContratac?codigo=${obra.cui}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/60 flex items-center justify-between group transition-colors shadow-xs"
-                      >
-                        <div>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 block">Contrataciones SEACE</span>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400">Procesos, Contratos y Arbitrajes</span>
-                        </div>
-                        <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-500 dark:group-hover:text-cyan-400 shrink-0" />
-                      </a>
-
-                      <a
-                        href={`https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepLinSeguim?codigo=${obra.cui}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-rose-500/60 flex items-center justify-between group transition-colors shadow-xs"
-                      >
-                        <div>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-rose-600 dark:group-hover:text-rose-400 block">Línea de Hitos y Cuaderno</span>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400">Adicionales, Ampliaciones y Fotos</span>
-                        </div>
-                        <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-500 dark:group-hover:text-rose-400 shrink-0" />
-                      </a>
-
-                      <a
-                        href={obra.datos_en_vivo_mef?.direct_urls?.url_geoinvierte || `https://ofi5.mef.gob.pe/geoinvierteportals/index.html?query=cartografia_pip_georef_edicion_lectura_7101,COD_UNICO,${obra.cui}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/60 flex items-center justify-between group transition-colors shadow-xs"
-                      >
-                        <div>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 block">Mapa GeoInvierte (MEF)</span>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                            {obra.datos_en_vivo_mef?.ubicacion_oficial?.localidad
-                              ? `Georref: ${obra.datos_en_vivo_mef.ubicacion_oficial.localidad}`
-                              : 'Ubicación oficial en cartografía PIP'}
-                          </span>
-                        </div>
-                        <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 shrink-0" />
-                      </a>
-
-                      {(obra.linea_tiempo?.url_reporte_mef || obra.datos_en_vivo_mef?.direct_urls?.url_ejecucion_fisica_obra) && (
+                      {/* Contrataciones SEACE */}
+                      {((obra.contratos && obra.contratos.length > 0) || (obra.datos_en_vivo_mef?.contratos_seace && obra.datos_en_vivo_mef.contratos_seace.length > 0)) ? (
                         <a
-                          href={obra.linea_tiempo?.url_reporte_mef || obra.datos_en_vivo_mef?.direct_urls?.url_ejecucion_fisica_obra}
+                          href={`https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepContratac?codigo=${obra.cui}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/60 flex items-center justify-between group transition-colors shadow-xs"
+                        >
+                          <div>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 block">Contrataciones SEACE</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400">Procesos, Contratos y Arbitrajes</span>
+                          </div>
+                          <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-500 dark:group-hover:text-cyan-400 shrink-0" />
+                        </a>
+                      ) : (
+                        <div
+                          className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 flex items-center justify-between shadow-xs cursor-help opacity-90"
+                          title="No registra contratos en SEACE: Obra bajo modalidad de Administración Directa o Adquisición directa de predio sin licitación pública."
+                          aria-disabled="true"
+                        >
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-slate-700 dark:text-slate-300 block">Contrataciones SEACE</span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                                Sin Contratos
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 block truncate max-w-[200px]">
+                              {obra.modalidad_ejecucion || obra.datos_en_vivo_mef?.modalidad_ejecucion || (esEnInicio ? 'Fase inicial' : 'Administración Directa')}
+                            </span>
+                          </div>
+                          <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        </div>
+                      )}
+
+                      {/* Línea de Hitos y Cuaderno */}
+                      {(obra.datos_en_vivo_mef?.nroseg && obra.linea_tiempo?.origen === 'MEF_SEACE') ? (
+                        <a
+                          href={`https://ofi5.mef.gob.pe/invierteWS/Repseguim/RepLinSeguim?codigo=${obra.cui}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-rose-500/60 flex items-center justify-between group transition-colors shadow-xs"
+                        >
+                          <div>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-rose-600 dark:group-hover:text-rose-400 block">Línea de Hitos y Cuaderno</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400">Adicionales, Ampliaciones y Fotos</span>
+                          </div>
+                          <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-500 dark:group-hover:text-rose-400 shrink-0" />
+                        </a>
+                      ) : (
+                        <div
+                          className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 flex items-center justify-between shadow-xs cursor-help opacity-90"
+                          title="Sin hitos ni cuaderno digital de obra en SEACE. La entidad reporta el avance y bitácora mediante Formato 12-B en Invierte.pe."
+                          aria-disabled="true"
+                        >
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-slate-700 dark:text-slate-300 block">Línea de Hitos y Cuaderno</span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                                Sin SEACE
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 block">
+                              Seguimiento en Formato 12-B
+                            </span>
+                          </div>
+                          <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        </div>
+                      )}
+
+                      {/* Reporte Oficial de Ejecución Física y Cronogramas (RepEjecFisObra) */}
+                      {(obra.datos_en_vivo_mef?.direct_urls?.url_ejecucion_fisica_obra || (obra.datos_en_vivo_mef?.nroseg && obra.linea_tiempo?.url_reporte_mef?.includes('RepEjecFisObra'))) && (
+                        <a
+                          href={obra.datos_en_vivo_mef?.direct_urls?.url_ejecucion_fisica_obra || obra.linea_tiempo?.url_reporte_mef}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 hover:border-blue-400 dark:bg-blue-950/40 dark:border-blue-800/80 dark:hover:border-blue-400 flex items-center justify-between group transition-colors shadow-xs sm:col-span-2 lg:col-span-3"
@@ -1454,30 +1482,59 @@ export default function FichaObraModal({ cui, onClose }) {
                         </a>
                       )}
 
-                      <a
-                        href={`https://ofi5.mef.gob.pe/repseguim/proyinv14.html?codigo=${obra.cui}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:border-emerald-400 dark:bg-emerald-950/30 dark:border-emerald-800/80 dark:hover:border-emerald-400 flex items-center justify-between group transition-colors shadow-xs sm:col-span-2 lg:col-span-3"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/60 dark:border-emerald-700/60 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                            📊
+                      {/* Reporte de Factor Productivo y Acción (proyinv14) */}
+                      {((obra.ejecucion_por_componentes && obra.ejecucion_por_componentes.length > 0) || (obra.datos_en_vivo_mef?.ejecucion_por_componentes && obra.datos_en_vivo_mef.ejecucion_por_componentes.length > 0)) ? (
+                        <a
+                          href={`https://ofi5.mef.gob.pe/repseguim/proyinv14.html?codigo=${obra.cui}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:border-emerald-400 dark:bg-emerald-950/30 dark:border-emerald-800/80 dark:hover:border-emerald-400 flex items-center justify-between group transition-colors shadow-xs sm:col-span-2 lg:col-span-3"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/60 dark:border-emerald-700/60 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                              📊
+                            </div>
+                            <div>
+                              <span className="font-semibold text-emerald-800 dark:text-emerald-300 group-hover:text-emerald-900 dark:group-hover:text-white block">
+                                Reporte de Factor Productivo y Acción (proyinv14)
+                              </span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                Metas físicas detalladas, valorizaciones por producto y componentes (Administración Directa / Contratas)
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-semibold text-emerald-800 dark:text-emerald-300 group-hover:text-emerald-900 dark:group-hover:text-white block">
-                              Reporte de Factor Productivo y Acción (proyinv14)
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                              Metas físicas detalladas, valorizaciones por producto y componentes (Administración Directa / Contratas)
-                            </span>
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-[11px] shrink-0 transition-colors">
+                            <span>Abrir proyinv14</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
                           </div>
+                        </a>
+                      ) : (
+                        <div
+                          className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 flex items-center justify-between shadow-xs cursor-help opacity-90 sm:col-span-2 lg:col-span-3"
+                          title="La unidad ejecutora no ha registrado desglose de metas físicas por componentes en Formato 08 / 12-B (al abrir proyinv14 el MEF muestra campos vacíos o undefined)."
+                          aria-disabled="true"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0">
+                              📊
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-slate-700 dark:text-slate-300 block">
+                                  Reporte de Factor Productivo y Acción (proyinv14)
+                                </span>
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                                  Sin Desglose
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                Sin registro de metas físicas detalladas por componente en Formato 08 / 12-B por la entidad
+                              </span>
+                            </div>
+                          </div>
+                          <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         </div>
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-[11px] shrink-0 transition-colors">
-                          <span>Abrir proyinv14</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </div>
-                      </a>
+                      )}
                     </div>
                   </div>
                 </div>
