@@ -50,7 +50,9 @@ def aplicar_enriquecimiento(
     limit: int = 50,
     only_pending: bool = True,
     re_enrich_days: int = None,
-    region: str = None
+    region: str = None,
+    chunk_size: int = 50,
+    delay_ms: int = 200
 ):
     start_time = time.time()
     check_and_apply_migrations()
@@ -148,130 +150,158 @@ def aplicar_enriquecimiento(
     enriquecidos = 0
     actualizados = 0
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(enriquecer_obra_individual, cui): cui for cui in cuis_to_enrich}
+    consecutive_errors = 0
+    total_batches = (total_candidatos + chunk_size - 1) // chunk_size
 
-        db_write = SessionLocal()
-        try:
-            for future in as_completed(futures):
-                cui = futures[future]
-                try:
-                    res = future.result()
-                    inv = db_write.query(Inversion).filter(Inversion.cui == cui).first()
-                    ev = db_write.query(EvaluacionRiesgo).filter(EvaluacionRiesgo.cui == cui).first()
+    for batch_idx in range(0, total_candidatos, chunk_size):
+        chunk = cuis_to_enrich[batch_idx : batch_idx + chunk_size]
+        curr_batch_num = (batch_idx // chunk_size) + 1
+        print(f"\n[BATCH {curr_batch_num}/{total_batches}] Procesando micro-lote de {len(chunk)} obras ({enriquecidos}/{total_candidatos} procesadas)...")
 
-                    if inv:
-                        inv.enriquecido = True
-                        inv.fecha_enriquecimiento = datetime.now(timezone.utc)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(enriquecer_obra_individual, cui): cui for cui in chunk}
 
-                    if res and inv and ev:
-                        cui_res, data = res
-                        prev_fisico = inv.avance_fisico
-                        prev_alerta = ev.nivel_alerta
+            db_write = SessionLocal()
+            try:
+                for future in as_completed(futures):
+                    cui = futures[future]
+                    try:
+                        res = future.result()
+                        inv = db_write.query(Inversion).filter(Inversion.cui == cui).first()
+                        ev = db_write.query(EvaluacionRiesgo).filter(EvaluacionRiesgo.cui == cui).first()
 
-                        new_fisico = data["avance_fisico"]
-                        new_diferencia = data["diferencia_avance"]
-                        new_estado = data["estado"]
-                        eval_data = data["evaluacion_riesgo"]
+                        if inv:
+                            inv.enriquecido = True
+                            inv.fecha_enriquecimiento = datetime.now(timezone.utc)
 
-                        inv.avance_fisico = new_fisico
-                        inv.diferencia_avance = new_diferencia
-                        inv.estado = new_estado
-                        if data.get("fec_fin"):
-                            inv.fec_fin_ejec_fisica = data["fec_fin"]
+                        if res and inv and ev:
+                            cui_res, data = res
+                            prev_fisico = inv.avance_fisico
+                            prev_alerta = ev.nivel_alerta
 
-                        mef_live = data.get("mef_live_data") or {}
-                        if mef_live.get("adicionales_reportados") is not None:
-                            inv.nro_adendas = int(mef_live.get("adicionales_reportados") or 0)
-                        if mef_live.get("causal_ampliacion"):
-                            inv.causal_retraso = str(mef_live["causal_ampliacion"])[:500]
-                        elif mef_live.get("ultimo_estado_situacional_f12b"):
-                            inv.causal_retraso = str(mef_live["ultimo_estado_situacional_f12b"])[:500]
-                        if mef_live.get("responsable_uei"):
-                            inv.supervisor_obra = str(mef_live["responsable_uei"])[:250]
+                            new_fisico = data["avance_fisico"]
+                            new_diferencia = data["diferencia_avance"]
+                            new_estado = data["estado"]
+                            eval_data = data["evaluacion_riesgo"]
 
-                        contratos_seace = mef_live.get("contratos_seace") or []
-                        if contratos_seace:
-                            from app.models import ContratoEmpresa
-                            db_write.query(ContratoEmpresa).filter(ContratoEmpresa.cui == cui).delete(synchronize_session=False)
-                            for c_item in contratos_seace:
-                                db_write.add(ContratoEmpresa(
-                                    cui=cui,
-                                    codigo_proceso_seace=c_item["codigo_proceso_seace"],
-                                    nro_contrato=c_item["nro_contrato"],
-                                    objeto=c_item["objeto"],
-                                    ruc_contratista=c_item["ruc_contratista"],
-                                    razon_social=c_item["razon_social"],
-                                    es_consorcio=c_item["es_consorcio"],
-                                    detalle_consorcio=None,
-                                    monto_contratado=c_item["monto_contratado"] or inv.costo_actualizado,
-                                    fecha_suscripcion=inv.fec_ini_ejec_fisica,
-                                    plazo_dias=0,
-                                    estado_contrato=c_item["estado_contrato"],
-                                    url_contrato_pdf=c_item["url_contrato_pdf"]
-                                ))
+                            inv.avance_fisico = new_fisico
+                            inv.diferencia_avance = new_diferencia
+                            inv.estado = new_estado
+                            if data.get("fec_fin"):
+                                inv.fec_fin_ejec_fisica = data["fec_fin"]
 
-                        from app.utils.ubigeo_helper import (
-                            es_coordenada_peru_valida,
-                            normalizar_coordenadas_peru,
-                            resolver_coordenadas
-                        )
-                        coords_invalidas = not es_coordenada_peru_valida(inv.latitud, inv.longitud, inv.departamento)
-                        geo_oficial = mef_live.get("ubicacion_oficial")
-                        if (
-                            geo_oficial
-                            and inv.departamento
-                            and str(geo_oficial.get("departamento") or "").strip().upper() != inv.departamento.strip().upper()
-                        ):
-                            from app.etl.mef_live_client import fetch_geoinvierte_coords
-                            geo_regional = fetch_geoinvierte_coords(cui, departamento=inv.departamento)
-                            if geo_regional:
-                                geo_oficial = geo_regional
+                            mef_live = data.get("mef_live_data") or {}
+                            if data.get("nro_adendas") is not None:
+                                inv.nro_adendas = int(data["nro_adendas"] or 0)
+                            elif mef_live.get("adicionales_reportados") is not None:
+                                inv.nro_adendas = int(mef_live.get("adicionales_reportados") or 0)
 
-                        lat_geo, lon_geo = (
-                            normalizar_coordenadas_peru(geo_oficial.get("latitud"), geo_oficial.get("longitud"))
-                            if geo_oficial else (None, None)
-                        )
+                            if data.get("causal_retraso"):
+                                inv.causal_retraso = str(data["causal_retraso"])[:500]
+                            elif mef_live.get("causal_ampliacion"):
+                                inv.causal_retraso = str(mef_live["causal_ampliacion"])[:500]
+                            elif mef_live.get("ultimo_estado_situacional_f12b"):
+                                inv.causal_retraso = str(mef_live["ultimo_estado_situacional_f12b"])[:500]
 
-                        if lat_geo is not None and lon_geo is not None and es_coordenada_peru_valida(lat_geo, lon_geo, inv.departamento):
-                            if coords_invalidas or target_mode == "geo_missing" or not only_pending:
-                                inv.latitud = lat_geo
-                                inv.longitud = lon_geo
-                                print(f"[📍 GEO] CUI {cui}: Coordenadas fijadas desde GeoInvierte -> ({inv.latitud}, {inv.longitud})")
-                        elif coords_invalidas or target_mode == "geo_missing":
-                            lat_ubig, lon_ubig = resolver_coordenadas(
-                                inv.latitud, inv.longitud,
-                                inv.departamento, inv.provincia, inv.distrito,
-                                ubigeo=inv.ubigeo
+                            if data.get("supervisor_obra"):
+                                inv.supervisor_obra = str(data["supervisor_obra"])[:250]
+                            elif mef_live.get("responsable_uei"):
+                                inv.supervisor_obra = str(mef_live["responsable_uei"])[:250]
+
+                            contratos_seace = mef_live.get("contratos_seace") or []
+                            if contratos_seace:
+                                from app.models import ContratoEmpresa
+                                db_write.query(ContratoEmpresa).filter(ContratoEmpresa.cui == cui).delete(synchronize_session=False)
+                                for c_item in contratos_seace:
+                                    db_write.add(ContratoEmpresa(
+                                        cui=cui,
+                                        codigo_proceso_seace=c_item["codigo_proceso_seace"],
+                                        nro_contrato=c_item["nro_contrato"],
+                                        objeto=c_item["objeto"],
+                                        ruc_contratista=c_item["ruc_contratista"],
+                                        razon_social=c_item["razon_social"],
+                                        es_consorcio=c_item["es_consorcio"],
+                                        detalle_consorcio=None,
+                                        monto_contratado=c_item["monto_contratado"] or inv.costo_actualizado,
+                                        fecha_suscripcion=inv.fec_ini_ejec_fisica,
+                                        plazo_dias=0,
+                                        estado_contrato=c_item["estado_contrato"],
+                                        url_contrato_pdf=c_item["url_contrato_pdf"]
+                                    ))
+
+                            from app.utils.ubigeo_helper import (
+                                es_coordenada_peru_valida,
+                                normalizar_coordenadas_peru,
+                                resolver_coordenadas
                             )
-                            if lat_ubig and lon_ubig:
-                                inv.latitud = lat_ubig
-                                inv.longitud = lon_ubig
-                                print(f"[📍 GEO] CUI {cui}: Coordenadas corregidas desde Catálogo Ubigeo -> ({inv.latitud}, {inv.longitud})")
+                            coords_invalidas = not es_coordenada_peru_valida(inv.latitud, inv.longitud, inv.departamento)
+                            geo_oficial = mef_live.get("ubicacion_oficial")
+                            if (
+                                geo_oficial
+                                and inv.departamento
+                                and str(geo_oficial.get("departamento") or "").strip().upper() != inv.departamento.strip().upper()
+                            ):
+                                from app.etl.mef_live_client import fetch_geoinvierte_coords
+                                geo_regional = fetch_geoinvierte_coords(cui, departamento=inv.departamento)
+                                if geo_regional:
+                                    geo_oficial = geo_regional
 
-                        ev.score_criticidad = eval_data["score_criticidad"]
-                        ev.nivel_alerta = eval_data["nivel_alerta"]
-                        ev.alerta_plazo_vencido = eval_data["alerta_plazo_vencido"]
-                        ev.alerta_desfase_financiero = eval_data["alerta_desfase_financiero"]
-                        ev.alerta_avance_lento = eval_data["alerta_avance_lento"]
-                        ev.alerta_sin_reporte = eval_data["alerta_sin_reporte"]
-                        ev.monto_en_riesgo = eval_data["monto_en_riesgo"]
-                        ev.justificacion_tecnica = eval_data["justificacion_tecnica"]
+                            lat_geo, lon_geo = (
+                                normalizar_coordenadas_peru(geo_oficial.get("latitud"), geo_oficial.get("longitud"))
+                                if geo_oficial else (None, None)
+                            )
 
-                        actualizados += 1
+                            if lat_geo is not None and lon_geo is not None and es_coordenada_peru_valida(lat_geo, lon_geo, inv.departamento):
+                                if coords_invalidas or target_mode == "geo_missing" or not only_pending:
+                                    inv.latitud = lat_geo
+                                    inv.longitud = lon_geo
+                                    print(f"[📍 GEO] CUI {cui}: Coordenadas fijadas desde GeoInvierte -> ({inv.latitud}, {inv.longitud})")
+                            elif coords_invalidas or target_mode == "geo_missing":
+                                lat_ubig, lon_ubig = resolver_coordenadas(
+                                    inv.latitud, inv.longitud,
+                                    inv.departamento, inv.provincia, inv.distrito,
+                                    ubigeo=inv.ubigeo
+                                )
+                                if lat_ubig and lon_ubig:
+                                    inv.latitud = lat_ubig
+                                    inv.longitud = lon_ubig
+                                    print(f"[📍 GEO] CUI {cui}: Coordenadas corregidas desde Catálogo Ubigeo -> ({inv.latitud}, {inv.longitud})")
 
-                        if prev_fisico != new_fisico or prev_alerta != ev.nivel_alerta:
-                            print(f"[✓ ENRICH] CUI {cui}: Físico {prev_fisico}% -> {new_fisico}% | Alerta {prev_alerta} -> {ev.nivel_alerta}")
-                        else:
-                            print(f"[= ENRICH] CUI {cui}: Sin cambio sustancial ({ev.nivel_alerta})")
-                    
-                    db_write.commit()
-                    enriquecidos += 1
-                except Exception as e:
-                    print(f"[! ERROR] Error procesando CUI {cui}: {e}")
-                    db_write.rollback()
-        finally:
-            db_write.close()
+                            ev.score_criticidad = eval_data["score_criticidad"]
+                            ev.nivel_alerta = eval_data["nivel_alerta"]
+                            ev.alerta_plazo_vencido = eval_data["alerta_plazo_vencido"]
+                            ev.alerta_desfase_financiero = eval_data["alerta_desfase_financiero"]
+                            ev.alerta_avance_lento = eval_data["alerta_avance_lento"]
+                            ev.alerta_sin_reporte = eval_data["alerta_sin_reporte"]
+                            ev.monto_en_riesgo = eval_data["monto_en_riesgo"]
+                            ev.justificacion_tecnica = eval_data["justificacion_tecnica"]
+
+                            actualizados += 1
+                            consecutive_errors = 0
+
+                            if prev_fisico != new_fisico or prev_alerta != ev.nivel_alerta:
+                                print(f"[✓ ENRICH] CUI {cui}: Físico {prev_fisico}% -> {new_fisico}% | Alerta {prev_alerta} -> {ev.nivel_alerta}")
+                            else:
+                                print(f"[= ENRICH] CUI {cui}: Sin cambio sustancial ({ev.nivel_alerta})")
+                        
+                        db_write.commit()
+                        enriquecidos += 1
+                    except Exception as e:
+                        print(f"[! ERROR] Error procesando CUI {cui}: {e}")
+                        consecutive_errors += 1
+                        db_write.rollback()
+
+                        # Circuit Breaker: si el servidor del Estado rechaza o falla 5 veces consecutivas
+                        if consecutive_errors >= 5:
+                            print("[⚠️ CIRCUIT BREAKER] Se detectaron 5 errores consecutivos del MEF/WAF. Pausando 25 segundos para evitar bloqueo de IP...")
+                            time.sleep(25)
+                            consecutive_errors = 0
+            finally:
+                db_write.close()
+
+        # Pausa suave adaptativa entre micro-lotes para respetar WAF del Estado
+        if batch_idx + chunk_size < total_candidatos and delay_ms > 0:
+            time.sleep(delay_ms / 1000.0)
 
     elapsed = time.time() - start_time
     print(f"\n[ENRIQUECIMIENTO FINALIZADO]")
@@ -303,6 +333,8 @@ if __name__ == "__main__":
     parser.add_argument("--limit", type=int, default=50, help="Límite de obras a enriquecer en este lote (default: 50, 0 para todas)")
     parser.add_argument("--all-records", action="store_true", help="Ignorar si ya fueron enriquecidas y procesar de nuevo")
     parser.add_argument("--re-enrich-days", type=int, default=None, help="Re-enriquecer obras con más de N días desde último enriquecimiento")
+    parser.add_argument("--chunk-size", type=int, default=50, help="Tamaño del micro-lote para checkpointing (default: 50)")
+    parser.add_argument("--delay-ms", type=int, default=200, help="Pausa en milisegundos entre micro-lotes para evitar rate-limiting (default: 200)")
     args = parser.parse_args()
 
     aplicar_enriquecimiento(
@@ -311,5 +343,7 @@ if __name__ == "__main__":
         limit=args.limit,
         only_pending=not args.all_records,
         re_enrich_days=args.re_enrich_days,
-        region=args.region
+        region=args.region,
+        chunk_size=args.chunk_size,
+        delay_ms=args.delay_ms
     )

@@ -295,6 +295,20 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
             if not result.get("responsable_uei") and det_ssi.get("DES_UNIDAD_UEI"):
                 result["responsable_uei"] = det_ssi.get("DES_UNIDAD_UEI")
 
+        # Si no existe línea de tiempo en SEACE (Nivel 1), pero sí tenemos Formato 12-B o Formato 14 (Nivel 2),
+        # construir la línea de tiempo oficial de la entidad en Formato 12-B
+        if not result.get("linea_tiempo") and (f12b_data or hist_situ or comp_items):
+            result["linea_tiempo"] = _construir_linea_tiempo_f12b(
+                cui=cui,
+                f12b_data=f12b_data,
+                hist_situ=hist_situ,
+                comp_items=comp_items,
+                comp_weighted=comp_weighted,
+                cierre_data=cierre_data,
+                det_ssi=det_ssi,
+                fotos_obra=result.get("fotos_obra", [])
+            )
+
         dev_acum_calc = float(det_ssi.get("DEV_ACUMULADO") or 0.0) if det_ssi else (float(f12b_data.get("DEV_ACUM_INV") or 0.0) if f12b_data else 0.0)
         costo_act_calc = float(det_ssi.get("COSTO_ACTUALIZADO") or 0.0) if det_ssi else (float(f12b_data.get("MTO_ET_INVIERTE") or 0.0) if f12b_data else 0.0)
         av_fis_calc = float(result.get("avance_fisico_cierre") or result.get("avance_fisico_seace") or result.get("porc_avance_fis_f12b") or 0.0)
@@ -1270,11 +1284,249 @@ def _fetch_factor_productivo_accion(cui: str) -> Tuple[Optional[List[Dict[str, A
         return None, 0.0
 
 
+def _construir_linea_tiempo_f12b(
+    cui: str,
+    f12b_data: Optional[Dict[str, Any]],
+    hist_situ: List[Dict[str, Any]],
+    comp_items: Optional[List[Dict[str, Any]]],
+    comp_weighted: float,
+    cierre_data: Optional[Dict[str, Any]],
+    det_ssi: Optional[Dict[str, Any]],
+    fotos_obra: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Construye la Línea de Tiempo Oficial Nivel 2 a partir de las declaraciones juradas
+    del Formato 12-B, Formato 14 (proyinv14) y la bitácora situacional de Invierte.pe.
+    Se utiliza cuando la obra se ejecuta bajo Administración Directa o no cuenta con
+    seguimiento de contratista privado en SEACE.
+    """
+    f12 = f12b_data or {}
+    det = det_ssi or {}
+    cierre = cierre_data or {}
+
+    av_fis_f12 = float(f12.get("PORC_AVANCE_FIS") or 0.0)
+    av_efectivo = max(av_fis_f12, float(comp_weighted or 0.0))
+    devengado = float(det.get("DEV_ACUMULADO") or f12.get("DEV_ACUM_INV") or 0.0)
+    costo_act = float(det.get("COSTO_ACTUALIZADO") or f12.get("MTO_ET_INVIERTE") or 0.0)
+    av_fin = round((devengado / costo_act * 100.0), 1) if costo_act > 0 else 0.0
+
+    ult_sit = str(f12.get("ULT_ESTADO_SITUACIONAL") or "").strip()
+    ult_sit_upper = ult_sit.upper()
+
+    es_controversia = bool(
+        any(k in ult_sit_upper for k in ["CONTROVERSIA", "ARBITRAJE", "INCUMPLIMIENTO", "JUDICIAL"]) or
+        any(h.get("es_controversia") for h in hist_situ)
+    )
+
+    es_paralizada = bool(
+        any(k in ult_sit_upper for k in ["PARALIZAD", "SUSPENDID", "CORTE DE OBRA", "FALTA DE ASIGNACION PRESUPUESTAL", "FALTA DE ASIGANCION", "FALTA DE PRESUPUESTO", "SIN PRESUPUESTO", "LIMITA LA EJECUC"]) or
+        any(h.get("es_paralizada") for h in hist_situ)
+    )
+
+    tiene_f09 = bool(cierre.get("tiene_informe_cierre"))
+    en_servicio = bool(cierre.get("en_funcionamiento"))
+    cierre_reg = str(f12.get("CIERRE_REGISTRADO") or det.get("CIERRE_REGISTRADO") or "").upper()
+    fase_ejec = str(cierre.get("fase_ejecucion") or "").upper()
+
+    es_culminada = (not es_controversia) and (not es_paralizada) and (
+        tiene_f09 or en_servicio or (cierre_reg in ("SI", "S")) or
+        ("LIQUIDACI" in cierre_reg) or ("CULMINAD" in cierre_reg) or ("CULMINAD" in fase_ejec) or
+        (av_efectivo >= 95.0) or (av_fin >= 85.0 and av_efectivo >= 80.0)
+    )
+
+    hitos = []
+
+    # 1. Viabilidad y Registro
+    fec_viable = _parse_dotnet_date(f12.get("FEC_VIABLE")) or _parse_dotnet_date(det.get("FECHA_VIABILIDAD"))
+    hitos.append({
+        "nombre": "Viabilidad y Registro en Banco de Inversiones",
+        "fecha": fec_viable or "Registrado en Invierte.pe",
+        "estado": "Aprobado en Banco de Inversiones",
+        "nivel": "COMPLETADO",
+        "comentario": "Inversión declarada viable y registrada formalmente en el sistema Invierte.pe."
+    })
+
+    # 2. Expediente Técnico / Documento Equivalente
+    fec_et = _parse_dotnet_date(f12.get("FEC_APROB_ET"))
+    mto_et = float(f12.get("MTO_ET_SNIP") or f12.get("MTO_ULT_ET") or 0.0)
+    if fec_et or mto_et > 0:
+        fec_et_str = fec_et or _parse_dotnet_date(f12.get("FECHA_ULT_ACT_F12B")) or "Aprobado formalmente"
+        com_et = f"Presupuesto de ingeniería registrado en S/ {mto_et:,.2f}." if mto_et > 0 else "Expediente técnico con resolución de aprobación registrada."
+        hitos.append({
+            "nombre": "Aprobación del Expediente Técnico",
+            "fecha": fec_et_str,
+            "estado": "Expediente Técnico registrado",
+            "nivel": "COMPLETADO",
+            "comentario": com_et
+        })
+    else:
+        hitos.append({
+            "nombre": "Aprobación del Expediente Técnico",
+            "fecha": "Pendiente de registro",
+            "estado": "Resolución técnica no declarada en Formato 12-B",
+            "nivel": "PENDIENTE",
+            "comentario": "La unidad ejecutora no ha registrado la fecha de aprobación formal ni el presupuesto del expediente técnico en el Formato 12-B."
+        })
+
+    # 3. Inicio Físico de Obra
+    fec_ini = _parse_dotnet_date(f12.get("FEC_INI_EJ"))
+    if fec_ini:
+        if av_efectivo > 0.0:
+            hitos.append({
+                "nombre": "Inicio de Trabajos en Terreno",
+                "fecha": fec_ini,
+                "estado": "Trabajos físicos iniciados en campo",
+                "nivel": "COMPLETADO",
+                "comentario": "Inicio formal de la intervención física reportado por la entidad en el Formato 12-B."
+            })
+        else:
+            hitos.append({
+                "nombre": "Inicio de Trabajos en Terreno",
+                "fecha": fec_ini,
+                "estado": "Fecha de inicio en cronograma (0.0% avance)",
+                "nivel": "EN_CURSO",
+                "comentario": "La entidad reportó fecha de inicio programada, pero las actas aún no registran valorizaciones físicas en terreno (0.0%)."
+            })
+    else:
+        hitos.append({
+            "nombre": "Inicio de Trabajos en Terreno",
+            "fecha": "Pendiente de programación",
+            "estado": "Sin fecha de inicio reportada en Formato 12-B",
+            "nivel": "PENDIENTE",
+            "comentario": "La entidad no ha declarado fecha de inicio efectivo en las fichas mensuales de seguimiento."
+        })
+
+    # 4. Hito de Ejecución Física declarado (si existe sustento oficial)
+    doc_hito = f12.get("DOC_SUSTENTO_HITO_EF")
+    des_hito = (f12.get("DES_HITO_EF") or "").strip()
+    fec_cumpl = _parse_dotnet_date(f12.get("FEC_CUMPLIMIENTO_HITO_EF"))
+    if des_hito or doc_hito:
+        hitos.append({
+            "nombre": f"Hito F12-B: {des_hito or 'Ejecución Física'}",
+            "fecha": fec_cumpl or "Reportado en F12-B",
+            "estado": "Hito cumplido según declaración jurada",
+            "nivel": "COMPLETADO",
+            "comentario": f"Documento de sustento: {doc_hito}" if doc_hito else "Hito de ejecución física acreditado por la entidad."
+        })
+
+    # 5. Plazo de Culminación
+    fec_fin = _parse_dotnet_date(f12.get("FEC_FIN_EJ")) or cierre.get("fecha_real_culminacion")
+    if es_culminada:
+        hitos.append({
+            "nombre": "Plazo y Culminación Física de Obra",
+            "fecha": fec_fin or "Culminado en campo",
+            "estado": "Culminación física alcanzada (Fase de liquidación / Cierre)",
+            "nivel": "COMPLETADO",
+            "comentario": "Los trabajos en terreno fueron concluidos y el proyecto se encuentra formalmente en fase de liquidación o cierre."
+        })
+    elif es_controversia:
+        hitos.append({
+            "nombre": "Plazo Contractual de Culminación",
+            "fecha": fec_fin or "Plazo vencido",
+            "estado": "En controversia legal / proceso arbitral",
+            "nivel": "RETRASADO",
+            "comentario": f"Proyecto detenido por controversia legal reportada en Formato 12-B: {ult_sit}" if ult_sit else "En trámite de arbitraje o resolución."
+        })
+    elif es_paralizada:
+        hitos.append({
+            "nombre": "Plazo Contractual de Culminación",
+            "fecha": fec_fin or "Plazo vencido",
+            "estado": "Obra paralizada / Detenida según Formato 12-B",
+            "nivel": "RETRASADO",
+            "comentario": f"Ejecución detenida: {ult_sit}" if ult_sit else "Obra paralizada por falta de asignación presupuestal o corte técnico."
+        })
+    elif fec_fin:
+        hitos.append({
+            "nombre": "Plazo de Culminación Programado",
+            "fecha": fec_fin,
+            "estado": "Plazo vigente en calendario",
+            "nivel": "EN_CURSO",
+            "comentario": "Fecha programada para la culminación según Formato 12-B."
+        })
+    else:
+        hitos.append({
+            "nombre": "Plazo de Culminación",
+            "fecha": "Sin fecha programada",
+            "estado": "Cronograma de culminación pendiente",
+            "nivel": "PENDIENTE",
+            "comentario": "La entidad no ha fijado fecha final de entrega en el Formato 12-B."
+        })
+
+    # 6. Estado Actual de Metas y Componentes
+    if comp_items and len(comp_items) > 0:
+        hitos.append({
+            "nombre": "Ejecución Física por Componentes (Formato 14 / proyinv14)",
+            "fecha": f"Avance físico ponderado: {comp_weighted:.1f}%",
+            "estado": f"Metas al {comp_weighted:.1f}% | Financiero: {av_fin:.1f}%",
+            "nivel": "COMPLETADO" if es_culminada else ("RETRASADO" if (av_fin - comp_weighted) > 15.0 or es_paralizada else "EN_CURSO"),
+            "comentario": f"El desglose oficial por factores productivos registra un avance físico ponderado del {comp_weighted:.1f}% frente a un desembolso financiero del {av_fin:.1f}%."
+        })
+    else:
+        hitos.append({
+            "nombre": "Estado Actual del Avance",
+            "fecha": "Actualizado según Formato 12-B",
+            "estado": f"Avance Físico: {av_efectivo:.1f}% | Financiero: {av_fin:.1f}%",
+            "nivel": "COMPLETADO" if es_culminada else ("RETRASADO" if es_paralizada or es_controversia else "EN_CURSO"),
+            "comentario": f"La entidad reporta {av_efectivo:.1f}% de avance físico oficial en el Formato 12-B frente a un devengado del {av_fin:.1f}% (S/ {devengado:,.2f})."
+        })
+
+    # 7. Liquidación y Cierre
+    if es_culminada:
+        fec_liq = cierre.get("fecha_liquidacion_prevista")
+        hitos.append({
+            "nombre": "Culminación, Liquidación y Transferencia",
+            "fecha": fec_liq or "Fase final / Formato 09",
+            "estado": "En proceso de liquidación y cierre (F09)",
+            "nivel": "COMPLETADO",
+            "comentario": "La infraestructura pública se encuentra terminada y en proceso de liquidación técnico-financiera (Formato 09)."
+        })
+    else:
+        hitos.append({
+            "nombre": "Liquidación y Cierre (Formato 09)",
+            "fecha": "Etapa posterior a la culminación",
+            "estado": "Sin informe de cierre registrado",
+            "nivel": "PENDIENTE",
+            "comentario": "El cierre formal de la inversión se emite una vez concluidas físicamente todas las metas en terreno."
+        })
+
+    # Alertas pedagógicas de campo desde la bitácora situacional
+    alertas_campo = []
+    if hist_situ:
+        vistos = set()
+        for hs in hist_situ:
+            desc = (hs.get("descripcion") or "").strip()
+            if not desc or desc in vistos:
+                continue
+            vistos.add(desc)
+            alertas_campo.append({
+                "riesgo": f"Anotación Situacional ({hs.get('tipo', 'F12-B')})",
+                "periodo": hs.get("fecha") or "F12-B",
+                "detalle": desc,
+                "mitigacion": "Declaración oficial jurada registrada por el inspector/residente en la bitácora de seguimiento de Invierte.pe.",
+                "responsable": det.get("DES_UNIDAD_UEI") or "Unidad Ejecutora de Inversiones"
+            })
+
+    return {
+        "origen": "FORMATO_12B_INVIERTE",
+        "tiene_datos_oficiales": True,
+        "nroseg": None,
+        "url_reporte_mef": f"https://ofi5.mef.gob.pe/inviertews/Repseguim/ResumF12B?codigo={cui}",
+        "resumen_estado": "Seguimiento institucional reportado directamente por la entidad en Formato 12-B / Banco de Inversiones (Administración Directa o sin contrato SEACE)",
+        "hitos": hitos,
+        "curva_avance": [],
+        "reprogramaciones": [],
+        "alertas_campo": alertas_campo[:4],
+        "fotos_obra": fotos_obra,
+        "historial_situacion": hist_situ,
+        "componentes": comp_items or []
+    }
+
+
 def sintetizar_linea_tiempo_ciudadana(inversion: Any, mef_live: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
-    Sintetiza una línea de tiempo ciudadana pedagógica y completa para cualquier obra pública
-    a partir del ciclo de vida oficial registrado en el Banco de Inversiones (Invierte.pe / SNIP),
-    asegurando que el ciudadano siempre entienda en qué etapa se encuentra la obra.
+    Sintetiza una línea de tiempo pedagógica y rigurosa cuando los módulos de seguimiento
+    en vivo (SEACE y Formato 12-B) no reportan datos oficiales o la API devuelve vacío.
+    Erradica la invención de fechas o expedientes técnicos ficticios.
     """
     cui = str(getattr(inversion, 'cui', ''))
     fec_viable = getattr(inversion, 'fec_viable', None) or getattr(inversion, 'fec_registro', None)
@@ -1307,13 +1559,11 @@ def sintetizar_linea_tiempo_ciudadana(inversion: Any, mef_live: Optional[Dict[st
     ult_situ_str = str(ult_situ or "").upper()
     hist_situ = (mef_live.get("historial_situacion") if mef_live else None) or []
 
-    # Detección de controversia, arbitraje o incumplimiento contractual
     es_controversia = bool(
         any(k in ult_situ_str for k in ["CONTROVERSIA", "ARBITRAJE", "INCUMPLIMIENTO", "JUDICIAL"]) or
         any(h.get("es_controversia") for h in hist_situ)
     )
 
-    # Detección de paralización o corte por desfinanciamiento
     es_paralizada = bool(
         any(k in ult_situ_str for k in ["PARALIZAD", "SUSPENDID", "CORTE DE OBRA", "FALTA DE ASIGNACION PRESUPUESTAL", "FALTA DE ASIGANCION", "FALTA DE PRESUPUESTO", "SIN PRESUPUESTO", "LIMITA LA EJECUC"]) or
         any(h.get("es_paralizada") for h in hist_situ)
@@ -1321,7 +1571,6 @@ def sintetizar_linea_tiempo_ciudadana(inversion: Any, mef_live: Optional[Dict[st
 
     tiene_f09 = bool(mef_live.get("tiene_informe_cierre")) if mef_live else False
 
-    # Determinar si la obra ha alcanzado su culminación física o está en liquidación/cierre
     es_culminada = (not es_controversia) and (not es_paralizada) and (
         ("CULMINAD" in fase_ejec.upper()) or
         ("LIQUIDACI" in cierre_reg_str.upper()) or
@@ -1342,22 +1591,41 @@ def sintetizar_linea_tiempo_ciudadana(inversion: Any, mef_live: Optional[Dict[st
     hitos = []
 
     # 1. Viabilidad
-    hitos.append({
-        "nombre": "Viabilidad y Aprobación del Perfil",
-        "fecha": str(fec_viable) if fec_viable else "Fecha inicial registrada",
-        "estado": "Aprobado en Banco de Inversiones",
-        "nivel": "COMPLETADO",
-        "comentario": "El proyecto demostró ser socialmente rentable y necesario para la comunidad."
-    })
+    if fec_viable:
+        hitos.append({
+            "nombre": "Viabilidad y Aprobación del Perfil",
+            "fecha": str(fec_viable),
+            "estado": "Aprobado en Banco de Inversiones",
+            "nivel": "COMPLETADO",
+            "comentario": "El proyecto fue evaluado y declarado viable en el Banco de Inversiones."
+        })
+    else:
+        hitos.append({
+            "nombre": "Registro de la Inversión",
+            "fecha": "Sin fecha de viabilidad",
+            "estado": "Registro preliminar",
+            "nivel": "PENDIENTE",
+            "comentario": "No se registra fecha formal de viabilidad en el Banco de Inversiones."
+        })
 
-    # 2. Expediente Técnico
-    hitos.append({
-        "nombre": "Aprobación del Expediente Técnico",
-        "fecha": str(fec_aprob_et) if fec_aprob_et else "Aprobado formalmente",
-        "estado": "Planos y presupuesto definidos",
-        "nivel": "COMPLETADO",
-        "comentario": f"Se fijó el presupuesto de ingeniería y especificaciones de construcción (S/ {mto_et:,.2f})."
-    })
+    # 2. Expediente Técnico (NUNCA falsear aprobación si no existe)
+    if fec_aprob_et or (mto_et and float(mto_et) > 0.0):
+        fec_et_txt = str(fec_aprob_et) if fec_aprob_et else "Registrado en Banco de Inversiones"
+        hitos.append({
+            "nombre": "Aprobación del Expediente Técnico",
+            "fecha": fec_et_txt,
+            "estado": "Planos y presupuesto definidos",
+            "nivel": "COMPLETADO",
+            "comentario": f"Se fijó el presupuesto de ingeniería y especificaciones de construcción (S/ {float(mto_et):,.2f})."
+        })
+    else:
+        hitos.append({
+            "nombre": "Aprobación del Expediente Técnico",
+            "fecha": "Pendiente de registro",
+            "estado": "Resolución técnica no declarada en MEF",
+            "nivel": "PENDIENTE",
+            "comentario": "La entidad pública no ha registrado la aprobación formal del expediente técnico ni el presupuesto de ingeniería en el Banco de Inversiones."
+        })
 
     # 3. Inicio Físico de Obra
     if fec_ini:
@@ -1365,9 +1633,9 @@ def sintetizar_linea_tiempo_ciudadana(inversion: Any, mef_live: Optional[Dict[st
             hitos.append({
                 "nombre": "Inicio de Trabajos en Terreno",
                 "fecha": str(fec_ini),
-                "estado": "Fecha de inicio fijada en cronograma (Sin avance reportado)",
+                "estado": "Fecha de inicio programada (Sin avance reportado: 0.0%)",
                 "nivel": "EN_CURSO",
-                "comentario": f"Fecha inicial programada en cronograma ({fec_ini}). Las valorizaciones técnicas aún no registran avance físico reportado en terreno (0.0%)."
+                "comentario": f"Fecha inicial fijada en cronograma ({fec_ini}). No se registran actas de valorización técnica en terreno (0.0%)."
             })
         else:
             hitos.append({
@@ -1377,6 +1645,14 @@ def sintetizar_linea_tiempo_ciudadana(inversion: Any, mef_live: Optional[Dict[st
                 "nivel": "COMPLETADO",
                 "comentario": "Comenzó la intervención efectiva de la obra."
             })
+    else:
+        hitos.append({
+            "nombre": "Inicio de Trabajos en Terreno",
+            "fecha": "Pendiente de programación",
+            "estado": "Sin fecha de inicio reportada",
+            "nivel": "PENDIENTE",
+            "comentario": "No se registra acta de entrega de terreno ni inicio formal de obra en el sistema."
+        })
 
     # 4. Plazo Contractual / Culminación
     fec_culm_real = mef_live.get("fecha_real_culminacion") if mef_live else None
@@ -1415,100 +1691,61 @@ def sintetizar_linea_tiempo_ciudadana(inversion: Any, mef_live: Optional[Dict[st
                 "nivel": "RETRASADO" if es_vencido else "EN_CURSO",
                 "comentario": f"Fecha programada para la entrega de la obra." + (f" Acumula un desfase de {dias_atraso} días." if es_vencido else "")
             })
+    else:
+        hitos.append({
+            "nombre": "Plazo Contractual de Culminación",
+            "fecha": "Sin fecha programada",
+            "estado": "Cronograma de culminación pendiente",
+            "nivel": "PENDIENTE",
+            "comentario": "No se registra fecha programada de culminación física en el Banco de Inversiones."
+        })
 
     # 5. Estado Actual de Ejecución
     if comp_items and len(comp_items) > 0:
-        all_comp_zero = all(float(c.get('porcentaje_avance') or 0.0) == 0.0 and float(c.get('monto_valorizado') or 0.0) == 0.0 for c in comp_items)
-        if all_comp_zero and (es_controversia or es_paralizada or (avance_fin - avance_fis) > 15.0):
-            comp_names = ", ".join([f"{c.get('componente') or c.get('producto')} (S/ {float(c.get('costo_inversion') or 0):,.0f})" for c in comp_items[:3]])
-            hitos.append({
-                "nombre": "Ejecución Física por Componentes (Formato 14 / 12-B)",
-                "fecha": f"Avance físico reportado: {avance_fis:.1f}%",
-                "estado": f"Metas al 0.0% valorizado | Financiero: {avance_fin:.1f}%",
-                "nivel": "RETRASADO",
-                "comentario": f"En el reporte oficial de Formato 14, los componentes programados ({comp_names}) no registran valorizaciones mensuales aprobadas. El avance físico reportado en Formato 12-B se sitúa en {avance_fis:.1f}%, mientras que financieramente se ha devengado el {avance_fin:.1f}% (S/ {devengado:,.2f})."
-            })
-        else:
-            resumen_prods = ", ".join([f"{c['producto'].title()} ({c['porcentaje_avance']}%)" for c in comp_items[:3]])
-            hitos.append({
-                "nombre": "Ejecución Física por Componentes y Metas (proyinv14)",
-                "fecha": f"Avance físico ponderado: {comp_weighted:.1f}%",
-                "estado": f"Metas al {comp_weighted:.1f}% | Financiero: {avance_fin:.1f}%",
-                "nivel": "COMPLETADO" if es_culminada else ("RETRASADO" if (avance_fin - comp_weighted) > 15.0 or es_controversia or es_paralizada else "EN_CURSO"),
-                "comentario": f"El reporte oficial de Factor Productivo y Acción (proyinv14) registra la valorización física detallada de cada producto: {resumen_prods}." + (" La obra alcanzó su culminación física en campo conforme a las actas técnicas." if es_culminada else " Presenta desfase físico frente a los desembolsos financieros.")
-            })
+        hitos.append({
+            "nombre": "Ejecución Física por Componentes y Metas (proyinv14)",
+            "fecha": f"Avance físico ponderado: {comp_weighted:.1f}%",
+            "estado": f"Metas al {comp_weighted:.1f}% | Financiero: {avance_fin:.1f}%",
+            "nivel": "COMPLETADO" if es_culminada else ("RETRASADO" if (avance_fin - comp_weighted) > 15.0 or es_controversia or es_paralizada else "EN_CURSO"),
+            "comentario": f"Reporte oficial de Factor Productivo y Acción (proyinv14)."
+        })
     elif es_admin_directa and avance_fis == 0.0 and es_culminada:
         hitos.append({
             "nombre": "Modalidad de Ejecución Directa",
             "fecha": f"Presupuesto devengado al {avance_fin:.1f}%",
             "estado": f"Administración Directa: Devengado S/ {devengado:,.2f}",
             "nivel": "COMPLETADO",
-            "comentario": f"La obra fue ejecutada directamente por la entidad pública (sin contratista privado). Al no haber empresa privada que presente valorizaciones mensuales en SEACE, el porcentaje digital figura en 0%, pero el presupuesto de S/ {costo_act:,.2f} fue ejecutado en su práctica totalidad ({avance_fin:.1f}% devengado)."
-        })
-    elif es_controversia:
-        hitos.append({
-            "nombre": "Estado Actual del Avance - Controversia Contractual",
-            "fecha": f"Físico: {avance_fis:.1f}% | Financiero: {avance_fin:.1f}%",
-            "estado": f"Desfase Crítico: {(avance_fin - avance_fis):.1f} pp (Detenido)",
-            "nivel": "RETRASADO",
-            "comentario": f"Existe un desfase crítico de {(avance_fin - avance_fis):.1f} puntos porcentuales. La entidad pagó/comprometió S/ {devengado:,.2f} ({avance_fin:.1f}%), pero el avance físico oficial se encuentra detenido en {avance_fis:.1f}% por controversia legal o proceso arbitral en curso."
-        })
-    elif es_paralizada:
-        hitos.append({
-            "nombre": "Estado Actual del Avance - Obra Paralizada",
-            "fecha": f"Físico: {avance_fis:.1f}% | Financiero: {avance_fin:.1f}%",
-            "estado": f"Desfase Crítico: {(avance_fin - avance_fis):.1f} pp (Paralizada)",
-            "nivel": "RETRASADO",
-            "comentario": f"Existe un desfase crítico de {(avance_fin - avance_fis):.1f} puntos porcentuales. Se devengó el {avance_fin:.1f}% del presupuesto (S/ {devengado:,.2f} de S/ {costo_act:,.2f}), pero la ejecución física quedó paralizada e inconclusa al {avance_fis:.1f}%."
+            "comentario": f"La obra fue ejecutada directamente por la entidad pública (sin contratista privado). Presupuesto ejecutado en su práctica totalidad ({avance_fin:.1f}% devengado)."
         })
     else:
-        es_retraso = (avance_fin - avance_fis) > 15.0 or dias_atraso > 30
         hitos.append({
             "nombre": "Estado Actual del Avance",
-            "fecha": "Actualizado a la fecha",
+            "fecha": "Reporte Banco de Inversiones",
             "estado": f"Avance Físico: {avance_fis:.1f}% | Financiero: {avance_fin:.1f}%",
-            "nivel": "COMPLETADO" if es_culminada else ("RETRASADO" if es_retraso else "EN_CURSO"),
-            "comentario": f"Se ha devengado el {avance_fin:.1f}% del presupuesto (S/ {devengado:,.2f} de S/ {costo_act:,.2f}) frente a un avance físico reportado del {avance_fis:.1f}%." + (f" Desfase físico-financiero de {(avance_fin - avance_fis):.1f} pp." if (avance_fin - avance_fis) > 5.0 else "")
+            "nivel": "COMPLETADO" if es_culminada else ("RETRASADO" if (avance_fin - avance_fis) > 15.0 else ("EN_CURSO" if (avance_fis > 0 or avance_fin > 0) else "PENDIENTE")),
+            "comentario": f"Se ha devengado el {avance_fin:.1f}% del presupuesto (S/ {devengado:,.2f} de S/ {costo_act:,.2f}) frente a un avance físico reportado del {avance_fis:.1f}%."
         })
 
     # 6. Liquidación y Cierre
     if es_culminada:
         hitos.append({
             "nombre": "Culminación, Liquidación y Transferencia",
-            "fecha": str(fec_liq) if fec_liq else "Fase final / Al servicio de la población",
+            "fecha": str(fec_liq) if fec_liq else "Fase final / Formato 09",
             "estado": "En funcionamiento y en proceso de liquidación (F09)",
             "nivel": "COMPLETADO",
-            "comentario": "La infraestructura pública se encuentra terminada y brindando servicio a la comunidad. El proyecto cuenta con Formato 09 de Cierre registrado ante el MEF y se encuentra en trámite administrativo de liquidación técnico-financiera."
-        })
-    elif es_controversia:
-        hitos.append({
-            "nombre": "Liquidación y Cierre (Formato 09)",
-            "fecha": "Pendiente de resolución legal",
-            "estado": "Sin Formato 09 emitido (En controversia legal)",
-            "nivel": "PENDIENTE",
-            "comentario": "El proyecto no cuenta con Formato 09 de Cierre registrado en el MEF. El cierre formal y la liquidación técnico-financiera se encuentran paralizados a la espera de la resolución judicial o arbitral del incumplimiento contractual."
-        })
-    elif es_paralizada or (avance_fis < 90.0 and avance_fin >= 80.0):
-        hitos.append({
-            "nombre": "Liquidación y Cierre (Formato 09)",
-            "fecha": "Sin culminación física",
-            "estado": "Sin Formato 09 emitido (Obra inconclusa)",
-            "nivel": "PENDIENTE",
-            "comentario": "El proyecto no cuenta con Formato 09 de Cierre registrado en el MEF debido a que la obra quedó inconclusa física y contractualmente."
+            "comentario": "La infraestructura pública se encuentra terminada y en trámite administrativo de liquidación técnico-financiera."
         })
     else:
         hitos.append({
-            "nombre": "Liquidación y Entrega a la Comunidad",
-            "fecha": str(fec_liq) if fec_liq else "Pendiente a la culminación de la obra",
-            "estado": "Etapa posterior a la entrega física",
+            "nombre": "Liquidación y Cierre (Formato 09)",
+            "fecha": "Etapa posterior a la culminación",
+            "estado": "Sin informe de cierre emitido",
             "nivel": "PENDIENTE",
-            "comentario": "Revisión de cuentas finales y entrega oficial para su mantenimiento y operación."
+            "comentario": "El cierre formal de la inversión se emite una vez concluidas físicamente todas las metas en terreno."
         })
 
-    # Alertas pedagógicas de campo (controversias, paralizaciones o notas históricas)
     alertas_campo = []
     entidad_nombre = getattr(inversion, 'entidad', None) or "Entidad Ejecutora"
-
     if (es_controversia or es_paralizada) and hist_situ:
         vistos_riesgos = set()
         for hs in hist_situ:
@@ -1519,33 +1756,22 @@ def sintetizar_linea_tiempo_ciudadana(inversion: Any, mef_live: Optional[Dict[st
                 vistos_riesgos.add(desc)
                 fec_str = hs.get("fecha", "").split()[0] if hs.get("fecha") else "Registro F12-B"
                 tipo_situ = "Controversia Contractual / Legal" if hs.get("es_controversia") else "Paralización de Obra / Falta de Presupuesto"
-                mitigacion_txt = (
-                    "La entidad pública mantiene abierta la controversia arbitral/legal por incumplimiento de contrato."
-                    if hs.get("es_controversia")
-                    else "La obra requiere asignación de saldos presupuestales o expediente de saldo de obra para su reactivación física."
-                )
                 alertas_campo.append({
                     "riesgo": f"{tipo_situ} ({hs.get('tipo', 'SITUACION')})",
                     "periodo": fec_str,
                     "detalle": desc,
-                    "mitigacion": mitigacion_txt,
+                    "mitigacion": "La entidad pública mantiene abierta la controversia o trámite de reinicio.",
                     "responsable": entidad_nombre
                 })
 
-    if ult_situ and ("COVID" in ult_situ.upper() or "2020" in ult_situ):
-        alertas_campo.append({
-            "riesgo": "Anotación Histórica de Emergencia Sanitaria (COVID-19)",
-            "periodo": "2020",
-            "detalle": ult_situ,
-            "mitigacion": f"Nota de seguimiento: La anotación en el F12B sobre la paralización por COVID-19 corresponde a julio de 2020. Con posterioridad, los trabajos se retomaron: entre 2020 y 2022 la entidad devengó más de S/ 800,000 adicionales alcanzando S/ {devengado:,.2f} (el {avance_fin:.1f}% del costo), culminando la restauración física y registrando el Formato 09 de Cierre.",
-            "responsable": entidad_nombre
-        })
+    tiene_datos_reales = bool(fec_viable or fec_aprob_et or fec_ini or fec_fin or comp_items or hist_situ)
 
     return {
-        "origen": "SINTESIS_INVIERTE",
+        "origen": "SINTESIS_INVIERTE" if tiene_datos_reales else "SIN_DATOS_REPORTADOS",
+        "tiene_datos_oficiales": tiene_datos_reales,
         "nroseg": None,
         "url_reporte_mef": f"https://ofi5.mef.gob.pe/inviertews/Repseguim/ResumF12B?codigo={cui}",
-        "resumen_estado": "Ciclo de vida oficial reconstruido pedagógicamente a partir del Banco de Inversiones del MEF",
+        "resumen_estado": "Ciclo de vida oficial reconstruido a partir del Banco de Inversiones del MEF" if tiene_datos_reales else "Inversión sin reportes periódicos de avance físico registrados ante el MEF / SEACE",
         "hitos": hitos,
         "curva_avance": [],
         "reprogramaciones": [],

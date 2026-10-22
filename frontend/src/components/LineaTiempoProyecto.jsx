@@ -30,6 +30,8 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
   } = lineaTiempo || {};
 
   const esMefSeace = origen === 'MEF_SEACE';
+  const esF12b = origen === 'FORMATO_12B_INVIERTE';
+  const sinDatos = origen === 'SIN_DATOS_REPORTADOS' || lineaTiempo?.tiene_datos_oficiales === false;
 
   // Ordenar periodos de forma descendente (el más reciente primero) para facilitar la consulta ciudadana
   const periodosDescendentes = [...curva_avance].sort((a, b) => {
@@ -83,7 +85,17 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
               {esMefSeace ? (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" aria-hidden="true"></span>
-                  Seguimiento Físico en Vivo MEF
+                  Contrata Supervisada (MEF / SEACE)
+                </span>
+              ) : esF12b ? (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400" aria-hidden="true"></span>
+                  Seguimiento Institucional (Formato 12-B)
+                </span>
+              ) : sinDatos ? (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400" aria-hidden="true"></span>
+                  Sin Reportes Oficiales de Ejecución
                 </span>
               ) : (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
@@ -178,7 +190,7 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
       </div>
 
       {/* 3. Curva de Avance Físico Mensual (Si tiene data SEACE/MEF) */}
-      {curva_avance.length > 0 && (
+      {curva_avance.length > 0 ? (
         <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
@@ -357,10 +369,24 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
             </div>
           )}
         </div>
+      ) : (
+        <div className="p-3.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs space-y-1 pt-3 border-t">
+          <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-300">
+            <TrendingUp className="w-4 h-4 text-slate-400 shrink-0" />
+            <span>Curva de Avance Físico Mensual (SEACE)</span>
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+            {esF12b ? (
+              <span>Esta obra se ejecuta bajo <strong>Administración Directa</strong> o sin contrato de empresa constructora en SEACE. En esta modalidad, el avance físico oficial se supervisa mediante las metas por componentes (Formato 14) y las declaraciones periódicas en el Formato 12-B que se detallan a continuación.</span>
+            ) : (
+              <span>La entidad pública no registra valorizaciones mensuales bajo curva de contrata en el sistema SEACE/MEF para esta inversión. Para verificar el estado técnico, consulte el desglose por componentes o la ficha pública de Invierte.pe.</span>
+            )}
+          </p>
+        </div>
       )}
 
       {/* 3.5. Desglose Físico por Factor Productivo y Acción (Reporte MEF proyinv14) */}
-      {listaComponentes.length > 0 && (
+      {listaComponentes.length > 0 ? (
         <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -526,7 +552,17 @@ export default function LineaTiempoProyecto({ lineaTiempo, componentes = [], his
             </button>
           )}
         </div>
-      )}
+      ) : sinDatos ? (
+        <div className="p-3.5 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/40 rounded-xl text-xs space-y-1 pt-3 border-t">
+          <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300">
+            <Info className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>Sin metas físicas desagregadas por componentes (Formato 14)</span>
+          </div>
+          <p className="text-[11px] text-slate-600 dark:text-slate-400">
+            La entidad no ha desagregado las metas por factor productivo en el Banco de Inversiones para esta inversión.
+          </p>
+        </div>
+      ) : null}
 
       {/* 3.6. Historial de Situación y Controversias Oficiales (Formato 12-B) */}
       {listaHistorial.length > 0 && (

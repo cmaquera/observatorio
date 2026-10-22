@@ -3,7 +3,7 @@ import os
 import re
 import csv
 import html
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, Response
 from sqlalchemy.orm import Session, joinedload
@@ -19,6 +19,7 @@ from app.etl.mef_live_client import (
     sintetizar_linea_tiempo_ciudadana,
     download_mef_archivo
 )
+from app.etl.conciliador import conciliar_datos_inversion
 from app.rules import aplicar_filtro_nivel_alerta
 
 router = APIRouter(prefix="/api/obras", tags=["Obras"])
@@ -205,6 +206,7 @@ def get_obra_detalle(
     Soporta carga progresiva: si live=False entrega la ficha local de inmediato (<5ms)
     o aprovecha la memoria caché si ya fue consultada.
     """
+    cui_clean = cui.strip()
     obra = (
         db.query(Inversion)
         .options(
@@ -212,11 +214,58 @@ def get_obra_detalle(
             joinedload(Inversion.contratos),
             joinedload(Inversion.documentos)
         )
-        .filter(Inversion.cui == cui.strip())
+        .filter(Inversion.cui == cui_clean)
         .first()
     )
+
+    # Auto-bootstrap on-demand si el CUI no fue indexado inicialmente pero existe en Invierte.pe
+    if not obra and cui_clean.isdigit() and len(cui_clean) in (6, 7):
+        try:
+            live_bootstrap = get_mef_live_data(cui_clean)
+            if live_bootstrap and live_bootstrap.get("disponible"):
+                geo_u = live_bootstrap.get("ubicacion_oficial") or {}
+                dpto = str(geo_u.get("departamento") or "LIMA").upper()
+                prov = str(geo_u.get("provincia") or "").upper()
+                dist = str(geo_u.get("distrito") or "").upper()
+                mto_et = float(live_bootstrap.get("monto_expediente_tecnico") or 0.0)
+
+                new_inv = Inversion(
+                    cui=cui_clean,
+                    nombre=f"Inversión Pública CUI {cui_clean}",
+                    departamento=dpto,
+                    provincia=prov,
+                    distrito=dist,
+                    latitud=float(geo_u.get("latitud") or 0.0) or None,
+                    longitud=float(geo_u.get("longitud") or 0.0) or None,
+                    costo_actualizado=mto_et,
+                    devengado_acumulado=0.0,
+                    avance_fisico=float(live_bootstrap.get("avance_fisico_seace") or live_bootstrap.get("porc_avance_fis_f12b") or 0.0),
+                    avance_financiero=0.0,
+                    situacion=str(live_bootstrap.get("modalidad_ejecucion") or "")[:100],
+                    estado="ACTIVO",
+                    enriquecido=True
+                )
+                db.add(new_inv)
+                ev_init = EvaluacionRiesgo(
+                    cui=cui_clean,
+                    score_criticidad=10.0,
+                    nivel_alerta="NORMAL",
+                    alerta_desfase_financiero=False,
+                    alerta_avance_lento=False,
+                    alerta_plazo_vencido=False,
+                    alerta_sin_reporte=False,
+                    monto_en_riesgo=0.0,
+                    justificacion_tecnica="Inversión auto-sincronizada en vivo desde el Banco de Inversiones (Invierte.pe)."
+                )
+                db.add(ev_init)
+                db.commit()
+                db.refresh(new_inv)
+                obra = new_inv
+        except Exception:
+            db.rollback()
+
     if not obra:
-        raise HTTPException(status_code=404, detail=f"Inversión con CUI {cui} no encontrada.")
+        raise HTTPException(status_code=404, detail=f"Inversión con CUI {cui} no encontrada en la base de datos ni en el Banco de Inversiones (Invierte.pe).")
 
     out = InversionDetalleOut.model_validate(obra)
     try:
@@ -227,70 +276,116 @@ def get_obra_detalle(
         else:
             mef_data = get_mef_live_data(obra.cui)
 
+        conciliado = conciliar_datos_inversion(obra, mef_data)
+
         out.datos_en_vivo_mef = mef_data
-        out.sincronizado_en_vivo = bool(mef_data and mef_data.get("disponible"))
-        if mef_data:
-            out.ejecucion_por_componentes = mef_data.get("ejecucion_por_componentes")
-            out.fotos_obra = mef_data.get("fotos_obra") or []
-            comp_weighted = mef_data.get("avance_fisico_componentes")
-            av_cierre = mef_data.get("avance_fisico_cierre")
-            av_seace = mef_data.get("avance_fisico_seace")
-            en_servicio = mef_data.get("en_funcionamiento")
-            fase_ejec = str(mef_data.get("fase_ejecucion") or "").upper()
-            cierre_str = str(mef_data.get("estado_cierre") or "").upper()
+        out.sincronizado_en_vivo = conciliado["sincronizado_en_vivo"]
+        out.avance_fisico = conciliado["avance_fisico"]
+        out.avance_financiero = conciliado["avance_financiero"]
+        out.diferencia_avance = conciliado["diferencia_avance"]
+        out.estado = conciliado["estado"]
+        if conciliado.get("modalidad_ejecucion"):
+            out.modalidad_ejecucion = conciliado["modalidad_ejecucion"]
+        if conciliado.get("causal_retraso"):
+            out.causal_retraso = conciliado["causal_retraso"]
+        if conciliado.get("supervisor_obra"):
+            out.supervisor_obra = conciliado["supervisor_obra"]
+        if conciliado.get("nro_adendas") is not None:
+            out.nro_adendas = conciliado["nro_adendas"]
 
-            if out.avance_fisico == 0.0:
-                if av_seace and av_seace > 0.0:
-                    out.avance_fisico = av_seace
-                elif comp_weighted and comp_weighted > 0.0:
-                    out.avance_fisico = comp_weighted
-                elif av_cierre and av_cierre > 0.0:
-                    out.avance_fisico = float(av_cierre)
-                elif en_servicio is True or "CULMINAD" in fase_ejec or "LIQUIDACI" in cierre_str or "CERRAD" in cierre_str:
-                    out.avance_fisico = 100.0
-                out.diferencia_avance = round(max(0.0, out.avance_financiero - out.avance_fisico), 2)
+        if out.evaluacion_riesgo and conciliado.get("evaluacion_riesgo"):
+            ev_data = conciliado["evaluacion_riesgo"]
+            out.evaluacion_riesgo.nivel_alerta = ev_data.get("nivel_alerta", out.evaluacion_riesgo.nivel_alerta)
+            out.evaluacion_riesgo.score_criticidad = ev_data.get("score_criticidad", out.evaluacion_riesgo.score_criticidad)
+            out.evaluacion_riesgo.alerta_desfase_financiero = ev_data.get("alerta_desfase_financiero", False)
+            out.evaluacion_riesgo.alerta_avance_lento = ev_data.get("alerta_avance_lento", False)
+            out.evaluacion_riesgo.alerta_plazo_vencido = ev_data.get("alerta_plazo_vencido", False)
+            out.evaluacion_riesgo.alerta_sin_reporte = ev_data.get("alerta_sin_reporte", False)
+            out.evaluacion_riesgo.monto_en_riesgo = ev_data.get("monto_en_riesgo", 0.0)
+            if ev_data.get("justificacion_tecnica"):
+                out.evaluacion_riesgo.justificacion_tecnica = ev_data["justificacion_tecnica"]
 
-            # Si la obra física ya alcanzó más de 95% de avance real y concluyó trabajos en terreno,
-            # recalibrar dinámicamente el diagnóstico de riesgo para reflejar la realidad en vivo
-            if out.avance_fisico >= 95.0 and out.evaluacion_riesgo:
-                out.evaluacion_riesgo.nivel_alerta = "BAJO"
-                out.evaluacion_riesgo.score_criticidad = min(out.evaluacion_riesgo.score_criticidad or 0.0, 15.0)
-                out.evaluacion_riesgo.alerta_desfase_financiero = False
-                out.evaluacion_riesgo.alerta_avance_lento = False
-                out.evaluacion_riesgo.alerta_plazo_vencido = False
-                out.evaluacion_riesgo.monto_en_riesgo = 0.0
-                out.evaluacion_riesgo.justificacion_tecnica = (
-                    f"Obra física con culminación efectiva al {out.avance_fisico:.1f}% según el seguimiento oficial de supervisión MEF/SEACE. "
-                    f"Se concluyeron los trabajos en terreno (entrega física de obra y postes kilométricos) "
-                    f"y se encuentra en etapa de liquidación final sin riesgo financiero adverso."
-                )
+        out.linea_tiempo = conciliado["linea_tiempo"]
+        out.ejecucion_por_componentes = conciliado["ejecucion_por_componentes"]
+        out.fotos_obra = conciliado["fotos_obra"]
+        out.alertas_ssi = conciliado["alertas_ssi"]
 
-            from app.utils.ubigeo_helper import es_coordenada_peru_valida, normalizar_coordenadas_peru, resolver_coordenadas
-            if mef_data.get("ubicacion_oficial"):
-                geo_info = mef_data["ubicacion_oficial"]
-                lat_geo, lon_geo = normalizar_coordenadas_peru(geo_info.get("latitud"), geo_info.get("longitud"))
-                if lat_geo is not None and lon_geo is not None and es_coordenada_peru_valida(lat_geo, lon_geo, obra.departamento):
-                    if not es_coordenada_peru_valida(out.latitud, out.longitud, obra.departamento):
-                        out.latitud = lat_geo
-                        out.longitud = lon_geo
-            if not es_coordenada_peru_valida(out.latitud, out.longitud, obra.departamento):
-                out.latitud, out.longitud = resolver_coordenadas(
-                    out.latitud, out.longitud,
-                    obra.departamento or "", obra.provincia or "", obra.distrito or "",
-                    ubigeo=obra.ubigeo
-                )
+        # Georreferenciación oficial
+        from app.utils.ubigeo_helper import es_coordenada_peru_valida, normalizar_coordenadas_peru, resolver_coordenadas
+        if mef_data and mef_data.get("ubicacion_oficial"):
+            geo_info = mef_data["ubicacion_oficial"]
+            lat_geo, lon_geo = normalizar_coordenadas_peru(geo_info.get("latitud"), geo_info.get("longitud"))
+            if lat_geo is not None and lon_geo is not None and es_coordenada_peru_valida(lat_geo, lon_geo, obra.departamento):
+                if not es_coordenada_peru_valida(out.latitud, out.longitud, obra.departamento):
+                    out.latitud = lat_geo
+                    out.longitud = lon_geo
+        if not es_coordenada_peru_valida(out.latitud, out.longitud, obra.departamento):
+            out.latitud, out.longitud = resolver_coordenadas(
+                out.latitud, out.longitud,
+                obra.departamento or "", obra.provincia or "", obra.distrito or "",
+                ubigeo=obra.ubigeo
+            )
 
-            if mef_data.get("linea_tiempo"):
-                out.linea_tiempo = mef_data["linea_tiempo"]
-            else:
-                out.linea_tiempo = sintetizar_linea_tiempo_ciudadana(obra, mef_data)
-            out.alertas_ssi = mef_data.get("alertas_ssi_mef") or []
-        else:
-            out.linea_tiempo = sintetizar_linea_tiempo_ciudadana(obra, None)
-            out.alertas_ssi = []
+        # Persistencia Write-Through en vivo para mantener SQLite permanentemente sincronizada
+        if live and conciliado.get("sincronizado_en_vivo"):
+            try:
+                obra.avance_fisico = conciliado["avance_fisico"]
+                obra.avance_financiero = conciliado["avance_financiero"]
+                obra.diferencia_avance = conciliado["diferencia_avance"]
+                obra.estado = conciliado["estado"]
+                if conciliado.get("modalidad_ejecucion"):
+                    obra.situacion = str(conciliado["modalidad_ejecucion"])[:100]
+                if conciliado.get("causal_retraso"):
+                    obra.causal_retraso = conciliado["causal_retraso"]
+                if conciliado.get("supervisor_obra"):
+                    obra.supervisor_obra = conciliado["supervisor_obra"]
+                if conciliado.get("nro_adendas") is not None:
+                    obra.nro_adendas = conciliado["nro_adendas"]
+                if conciliado.get("fec_fin"):
+                    obra.fec_fin_ejec_fisica = conciliado["fec_fin"]
+                obra.latitud = out.latitud
+                obra.longitud = out.longitud
+                obra.enriquecido = True
+                obra.fecha_enriquecimiento = datetime.now(timezone.utc)
+
+                if obra.evaluacion_riesgo and conciliado.get("evaluacion_riesgo"):
+                    ev_db = obra.evaluacion_riesgo
+                    ev_info = conciliado["evaluacion_riesgo"]
+                    ev_db.nivel_alerta = ev_info.get("nivel_alerta", ev_db.nivel_alerta)
+                    ev_db.score_criticidad = ev_info.get("score_criticidad", ev_db.score_criticidad)
+                    ev_db.alerta_desfase_financiero = ev_info.get("alerta_desfase_financiero", False)
+                    ev_db.alerta_avance_lento = ev_info.get("alerta_avance_lento", False)
+                    ev_db.alerta_plazo_vencido = ev_info.get("alerta_plazo_vencido", False)
+                    ev_db.alerta_sin_reporte = ev_info.get("alerta_sin_reporte", False)
+                    ev_db.monto_en_riesgo = ev_info.get("monto_en_riesgo", 0.0)
+                    if ev_info.get("justificacion_tecnica"):
+                        ev_db.justificacion_tecnica = ev_info["justificacion_tecnica"]
+
+                # Sincronizar contratos SEACE si se detectaron nuevos
+                contratos_mef = conciliado.get("contratos_seace") or []
+                if contratos_mef and not obra.contratos:
+                    for c_item in contratos_mef:
+                        db.add(ContratoEmpresa(
+                            cui=obra.cui,
+                            codigo_proceso_seace=c_item["codigo_proceso_seace"],
+                            nro_contrato=c_item["nro_contrato"],
+                            objeto=c_item["objeto"],
+                            ruc_contratista=c_item["ruc_contratista"],
+                            razon_social=c_item["razon_social"],
+                            es_consorcio=c_item["es_consorcio"],
+                            monto_contratado=c_item["monto_contratado"] or obra.costo_actualizado,
+                            fecha_suscripcion=obra.fec_ini_ejec_fisica,
+                            estado_contrato=c_item["estado_contrato"],
+                            url_contrato_pdf=c_item["url_contrato_pdf"]
+                        ))
+
+                db.commit()
+            except Exception:
+                db.rollback()
     except Exception:
         out.datos_en_vivo_mef = None
-        out.linea_tiempo = sintetizar_linea_tiempo_ciudadana(obra, None)
+        conciliado = conciliar_datos_inversion(obra, None)
+        out.linea_tiempo = conciliado["linea_tiempo"]
 
     return out
 
