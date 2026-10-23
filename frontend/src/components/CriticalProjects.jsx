@@ -197,7 +197,9 @@ export default function CriticalProjects({ projects = [], onSelectProject, loadi
                     <FileSearch className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
                     <span className="line-clamp-1">
                       <strong className="text-slate-700 dark:text-slate-300">Causa oficial del retraso: </strong>
-                      {p.causal_retraso}
+                      {p.causal_retraso
+                        ? p.causal_retraso.replace(/<br\s*\/?>/gi, ' — ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+                        : ''}
                     </span>
                   </div>
                 )}

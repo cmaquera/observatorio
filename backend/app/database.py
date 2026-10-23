@@ -85,6 +85,28 @@ def check_and_apply_migrations():
                         )
                     conn.commit()
                     print(f"[DB MIGRATION] Se corrigieron automáticamente las coordenadas de {len(bad_rows)} obras fuera de rango.")
+
+                # Auto-sanear causales de retraso con etiquetas HTML residuales (<br>, <p>, etc.)
+                causal_rows = conn.execute(text(
+                    "SELECT cui, causal_retraso FROM inversiones "
+                    "WHERE causal_retraso LIKE '%<br%' OR causal_retraso LIKE '%<BR%';"
+                )).fetchall()
+                if causal_rows:
+                    import re
+                    for c_cui, c_text in causal_rows:
+                        s_c = str(c_text)
+                        s_c = re.sub(r'<br\s*/?>', '\n', s_c, flags=re.I)
+                        s_c = re.sub(r'</p>', '\n', s_c, flags=re.I)
+                        s_c = re.sub(r'<[^>]+>', ' ', s_c)
+                        s_c = s_c.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"')
+                        lines_c = [re.sub(r'[ \t]+', ' ', l).strip() for l in s_c.split('\n')]
+                        clean_c = '\n'.join(l for l in lines_c if l)[:500]
+                        conn.execute(
+                            text("UPDATE inversiones SET causal_retraso = :c WHERE cui = :cui"),
+                            {"c": clean_c, "cui": c_cui}
+                        )
+                    conn.commit()
+                    print(f"[DB MIGRATION] Se sanearon las etiquetas HTML de {len(causal_rows)} causales de retraso.")
     except Exception as e:
         print(f"[DB MIGRATION] Aviso en migración: {e}")
 

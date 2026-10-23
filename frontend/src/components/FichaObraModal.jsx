@@ -660,7 +660,11 @@ export default function FichaObraModal({ cui, onClose }) {
                               ? 'Supervisión en cuaderno de obra: '
                               : 'Motivo de retraso según documentos e informes oficiales: '}
                           </span>
-                          <span className="text-slate-700 dark:text-slate-200">{obra.causal_retraso}</span>
+                          <span className="text-slate-700 dark:text-slate-200 block whitespace-pre-line mt-1">
+                            {obra.causal_retraso
+                              ? obra.causal_retraso.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').trim()
+                              : ''}
+                          </span>
                         </div>
                       </div>
                     )}

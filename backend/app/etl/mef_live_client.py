@@ -96,6 +96,20 @@ def get_cached_mef_data(cui: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def _clean_mef_html_text(text: Optional[str]) -> Optional[str]:
+    """Limpia etiquetas HTML como <br>, <p>, &nbsp; y espacios redundantes de los textos oficiales del MEF."""
+    if not text:
+        return None
+    s = str(text)
+    s = re.sub(r'<br\s*/?>', '\n', s, flags=re.I)
+    s = re.sub(r'</p>', '\n', s, flags=re.I)
+    s = re.sub(r'<[^>]+>', ' ', s)
+    s = s.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"')
+    lines = [re.sub(r'[ \t]+', ' ', l).strip() for l in s.split('\n')]
+    cleaned = '\n'.join(l for l in lines if l)
+    return cleaned if cleaned else None
+
+
 def get_mef_live_data(cui: str) -> Dict[str, Any]:
     """
     Obtiene los datos enriquecidos en tiempo real del MEF para un CUI.
@@ -172,7 +186,7 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
                 result["estado_cierre"] = f12b_data.get("CIERRE_REGISTRADO")
                 result["fecha_fin_programada"] = f12b_data.get("FEC_FIN_EJ")
                 result["monto_expediente_tecnico"] = f12b_data.get("MTO_ET_SNIP") or f12b_data.get("MTO_ULT_ET")
-                result["ultimo_estado_situacional_f12b"] = f12b_data.get("ULT_ESTADO_SITUACIONAL")
+                result["ultimo_estado_situacional_f12b"] = _clean_mef_html_text(f12b_data.get("ULT_ESTADO_SITUACIONAL"))
                 result["porc_avance_fis_f12b"] = f12b_data.get("PORC_AVANCE_FIS")
 
             hist_situ = _safe_res(fut_hist, [], timeout=3.0)
@@ -238,7 +252,7 @@ def get_mef_live_data(cui: str) -> Dict[str, Any]:
             nroseg_f12 = int(result.get("nroseg") or 0)
             av_f12 = round(float(f12b_data.get("PORC_AVANCE_FIS") or f12b_data.get("PORC_AVANCE_EJEC") or 0.0), 2)
             mto_f12 = round(float(f12b_data.get("DEV_ACUM_INV") or 0.0), 2)
-            situ_f12 = (f12b_data.get("ULT_ESTADO_SITUACIONAL") or "").strip() or None
+            situ_f12 = _clean_mef_html_text(f12b_data.get("ULT_ESTADO_SITUACIONAL"))
 
             f12_photo_pairs = [
                 ("RUTA_FOTO", "PER_FOTO", "Registro fotográfico de avance físico en Formato 12-B"),
@@ -928,7 +942,8 @@ def _fetch_seguimiento_completo(cui: str, avance_f12b: Optional[float] = None) -
         return None
 
     total_adicionales = sum(1 for it in items if it.get("NRO_ADICIONAL"))
-    causales = [it.get("DES_CAUSAL") for it in items if it.get("DES_CAUSAL")]
+    causales = [_clean_mef_html_text(it.get("DES_CAUSAL")) for it in items if it.get("DES_CAUSAL")]
+    causales = [c for c in causales if c]
     cuadernos = [it.get("URL_CUAD_OBRA") for it in items if it.get("URL_CUAD_OBRA")]
     estado_hito = next((it.get("ESTADO_HITO") for it in items if it.get("ESTADO_HITO")), None)
 
