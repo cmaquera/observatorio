@@ -315,12 +315,20 @@ def get_obra_detalle(
         out.alertas_ssi = conciliado["alertas_ssi"]
 
         # Georreferenciación oficial
-        from app.utils.ubigeo_helper import es_coordenada_peru_valida, normalizar_coordenadas_peru, resolver_coordenadas
+        from app.utils.ubigeo_helper import (
+            es_coordenada_peru_valida,
+            es_centroide_provisional,
+            normalizar_coordenadas_peru,
+            resolver_coordenadas,
+        )
         if mef_data and mef_data.get("ubicacion_oficial"):
             geo_info = mef_data["ubicacion_oficial"]
             lat_geo, lon_geo = normalizar_coordenadas_peru(geo_info.get("latitud"), geo_info.get("longitud"))
             if lat_geo is not None and lon_geo is not None and es_coordenada_peru_valida(lat_geo, lon_geo, obra.departamento):
-                if not es_coordenada_peru_valida(out.latitud, out.longitud, obra.departamento):
+                if (
+                    not es_coordenada_peru_valida(out.latitud, out.longitud, obra.departamento)
+                    or es_centroide_provisional(out.latitud, out.longitud, obra.departamento)
+                ):
                     out.latitud = lat_geo
                     out.longitud = lon_geo
         if not es_coordenada_peru_valida(out.latitud, out.longitud, obra.departamento):

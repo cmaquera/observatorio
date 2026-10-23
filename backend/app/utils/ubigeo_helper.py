@@ -29,6 +29,37 @@ DEPARTAMENTO_CENTROIDS = {
     "UCAYALI": (-8.3791, -74.5539),
 }
 
+# Delimitaciones geográficas aproximadas (Bounding Boxes) oficiales para los 25 departamentos del Perú
+# Formato: (lat_min, lat_max, lon_min, lon_max)
+DEPARTAMENTOS_BOUNDS = {
+    "AMAZONAS": (-6.98, -2.99, -78.85, -77.12),
+    "ANCASH": (-10.77, -8.04, -78.65, -76.71),
+    "APURIMAC": (-14.77, -13.12, -73.91, -72.05),
+    "AREQUIPA": (-16.99, -14.63, -75.08, -70.83),
+    "AYACUCHO": (-15.65, -12.11, -75.14, -72.95),
+    "CAJAMARCA": (-7.84, -4.61, -79.45, -77.74),
+    "CALLAO": (-12.15, -11.75, -77.27, -77.08),
+    "CUSCO": (-15.48, -11.17, -73.99, -70.35),
+    "HUANCAVELICA": (-14.15, -11.98, -75.79, -74.27),
+    "HUANUCO": (-10.49, -8.36, -77.30, -74.57),
+    "ICA": (-15.43, -13.17, -76.43, -74.70),
+    "JUNIN": (-12.63, -10.68, -76.53, -73.39),
+    "LA LIBERTAD": (-8.98, -6.99, -79.70, -76.62),
+    "LAMBAYEQUE": (-7.18, -5.47, -80.67, -79.12),
+    "LIMA": (-13.33, -10.27, -77.89, -75.52),
+    "LORETO": (-8.68, -0.04, -77.85, -69.95),
+    "MADRE DE DIOS": (-13.45, -9.88, -72.40, -68.65),
+    "MOQUEGUA": (-17.85, -15.95, -71.55, -70.45),
+    "PASCO": (-11.17, -9.88, -76.73, -74.34),
+    "PIURA": (-6.37, -4.08, -81.33, -79.21),
+    "PUNO": (-17.29, -13.01, -71.14, -68.80),
+    "SAN MARTIN": (-8.87, -5.39, -77.80, -75.50),
+    "TACNA": (-18.45, -16.70, -71.25, -69.30),
+    "TUMBES": (-4.23, -3.40, -81.05, -80.09),
+    "UCAYALI": (-11.45, -7.33, -75.60, -70.50),
+}
+
+
 # Código de departamento según INEI (primeros 2 dígitos de UBIGEO)
 UBIGEO_DPTO = {
     "01": (-6.2294, -77.8728),  # Amazonas
@@ -254,7 +285,7 @@ def es_coordenada_peru_valida(lat, lon, departamento: str = None) -> bool:
     """
     Verifica si (lat, lon) está dentro de los límites continentales del Perú (excluyendo el fallback -9.1899).
     Si se especifica `departamento`, verifica además que la coordenada caiga dentro del ámbito geográfico
-    de esa región (evitando que una obra de Tacna conserve coordenadas de otra región o del Polo Sur).
+    de esa región (evitando que una obra conserve coordenadas de otra región o del Polo Sur).
     """
     try:
         if lat is None or lon is None:
@@ -269,8 +300,9 @@ def es_coordenada_peru_valida(lat, lon, departamento: str = None) -> bool:
             dpto = departamento.strip().upper()
             for orig, norm in [("Á", "A"), ("É", "E"), ("Í", "I"), ("Ó", "O"), ("Ú", "U")]:
                 dpto = dpto.replace(orig, norm)
-            if dpto == "TACNA":
-                return -18.45 <= lat_f <= -16.70 and -71.25 <= lon_f <= -69.30
+            if dpto in DEPARTAMENTOS_BOUNDS:
+                lat_min, lat_max, lon_min, lon_max = DEPARTAMENTOS_BOUNDS[dpto]
+                return lat_min <= lat_f <= lat_max and lon_min <= lon_f <= lon_max
             if dpto in DEPARTAMENTO_CENTROIDS:
                 c_lat, c_lon = DEPARTAMENTO_CENTROIDS[dpto]
                 max_delta = 5.0 if dpto in ("LORETO", "UCAYALI", "MADRE DE DIOS", "CUSCO", "AREQUIPA", "PUNO") else 3.2
@@ -279,6 +311,39 @@ def es_coordenada_peru_valida(lat, lon, departamento: str = None) -> bool:
         return True
     except (ValueError, TypeError):
         return False
+
+
+def es_centroide_provisional(lat, lon, departamento: str = None) -> bool:
+    """
+    Determina si una coordenada corresponde a un centroide provisional/fallback
+    (ej. el centroide nacional -9.1899 o el centroide departamental de contingencia).
+    """
+    try:
+        if lat is None or lon is None:
+            return True
+        lat_f, lon_f = float(lat), float(lon)
+        # Centroide nacional de contingencia
+        if abs(lat_f - (-9.1899)) < 0.001 and abs(lon_f - (-75.0152)) < 0.001:
+            return True
+        if departamento:
+            dpto = departamento.strip().upper()
+            for orig, norm in [("Á", "A"), ("É", "E"), ("Í", "I"), ("Ó", "O"), ("Ú", "U")]:
+                dpto = dpto.replace(orig, norm)
+            if dpto in DEPARTAMENTO_CENTROIDS:
+                c_lat, c_lon = DEPARTAMENTO_CENTROIDS[dpto]
+                if abs(lat_f - c_lat) < 0.001 and abs(lon_f - c_lon) < 0.001:
+                    return True
+            if dpto == "TACNA":
+                if abs(lat_f - (-18.0066)) < 0.001 or abs(lat_f - (-18.0146)) < 0.001:
+                    return True
+        else:
+            # Sin departamento: verificar contra todos los centroides departamentales
+            for c_lat, c_lon in DEPARTAMENTO_CENTROIDS.values():
+                if abs(lat_f - c_lat) < 0.001 and abs(lon_f - c_lon) < 0.001:
+                    return True
+        return False
+    except (ValueError, TypeError):
+        return True
 
 
 def normalizar_coordenadas_peru(lat, lon):
