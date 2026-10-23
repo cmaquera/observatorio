@@ -153,17 +153,10 @@ def conciliar_datos_inversion(
         
         causal_mef = mef_data.get("causal_ampliacion") or mef_data.get("ultimo_estado_situacional_f12b")
         if causal_mef:
-            s_c = str(causal_mef)
-            s_c = re.sub(r'<br\s*/?>', '
-', s_c, flags=re.I)
-            s_c = re.sub(r'</p>', '
-', s_c, flags=re.I)
-            s_c = re.sub(r'<[^>]+>', ' ', s_c)
-            s_c = s_c.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"')
-            lines_c = [re.sub(r'[ 	]+', ' ', l).strip() for l in s_c.split('
-')]
-            causal_retraso = '
-'.join(l for l in lines_c if l)[:500]
+            from app.etl.mef_live_client import _clean_mef_html_text
+            cleaned_c = _clean_mef_html_text(causal_mef)
+            if cleaned_c:
+                causal_retraso = cleaned_c[:500]
 
         if mef_data.get("responsable_uei"):
             supervisor = str(mef_data["responsable_uei"])[:250]
