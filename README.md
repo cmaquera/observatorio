@@ -125,12 +125,12 @@ flowchart TD
 - **Ficha Táctica Flotante con Apertura a Demanda**: Panel de inspección detallado que se activa únicamente por selección manual (clic en marcador, obra o alerta), permitiendo examinar desfases físicos vs. financieros, diagnóstico del MEF y auditoría directa.
 - **Paleta No Semafórica para Sectores**: Esquema cromático diferenciado para sectores económicos (Vial, Salud, Agua, Educación, Otros) independiente del semáforo de criticidad (Crítico, Observadas, En Plazo) para prevenir sesgos de interpretación.
 - **Persistencia Síncrona de Filtros (LocalStorage + URL State)**: Sincronización transparente de la ubicación en la URL (`?departamento=...&provincia=...&distrito=...`) y en almacenamiento local, garantizando que al recargar la página (F5) se preserve de inmediato el filtro territorial sin reiniciar a la región completa.
-- **Georreferenciación Híbrida y GeoInvierte Oficial**: Detección de coordenadas exactas del expediente de formulación vía servicio ArcGIS del MEF (`cartografia_pip_georef_edicion_lectura`) con cascada de contingencia por UBIGEO para las 25 regiones del Perú, eliminando desplazamientos erróneos de obras con coordenadas 0.0 en el dataset de origen.
+- **Georreferenciación Híbrida y Catálogo Nacional Universal**: Cobertura al 100% del territorio peruano integrando el catálogo oficial del INEI con los **1,893 distritos** y las **196 provincias** de los **25 departamentos** (`ubigeo_peru_distritos.json`). Cuenta con delimitaciones por Bounding Box (`DEPARTAMENTOS_BOUNDS`) para validación regional y cascada jerárquica de 5 niveles (GeoInvierte Oficial $\to$ UBIGEO Distrital INEI $\to$ Nombre de Distrito $\to$ Centroide Provincial $\to$ Centroide Departamental de Contingencia), eliminando la acumulación artificial de obras en las capitales regionales.
 - **Alineación Dinámica y Scroll Interno**: Contención reactiva basada en `ResizeObserver` para acoplar la altura de las tres columnas a la matriz de *Desfase de Cronograma*, eliminando espacios en blanco inferiores.
 
 ### 6. 📋 Ficha Técnica y Diagnóstico para el Ciudadano
 Cada obra cuenta con un expediente interactivo estructurado en pestañas:
-- **Resumen Ciudadano**: Diagnóstico en 3 bloques didácticos (Plazo de entrega, Dinero gastado vs. Construcción real, y Estado de controversias).
+- **Resumen Ciudadano**: Diagnóstico en 3 bloques didácticos (Plazo de entrega, Dinero gastado vs. Construcción real, y Estado de controversias), con saneamiento automático de etiquetas HTML residuales (`<br>`, `<p>`, `&nbsp;`) en causales oficiales del MEF/SEACE y formateo multilínea visualmente limpio (`whitespace-pre-line`).
 - **Fotos en Terreno**: Galería de fotos oficiales de supervisión técnica extraídas de reportes de campo (imágenes directas y paneles fotográficos en PDF con visor integrado, badges por periodo y avance físico, y avisos de estado claro cuando una obra no dispone de fotos digitales cargadas).
 - **Línea de Tiempo & Metas Físicas**: Reconciliación de hitos históricos (perfil, expediente, inicio, entrega) y avance por componentes (infraestructura, supervisión, equipamiento del Formato 14).
 - **Contratos & Alertas SSI**: Contratos asociados, consorcios adjudicatarios y motor oficial de alertas del MEF.
@@ -223,7 +223,8 @@ observatorio/
 │   │   ├── rules.py                 # Algoritmo del Índice de Severidad de Riesgo (ISR)
 │   │   └── main.py                  # Instancia principal de la aplicación FastAPI
 │   ├── data/
-│   │   └── observatorio.db          # Base de datos analítica SQLite pre-poblada
+│   │   ├── observatorio.db          # Base de datos analítica SQLite pre-poblada
+│   │   └── ubigeo_peru_distritos.json # Catálogo oficial nacional (1,893 distritos y 196 provincias)
 │   ├── Dockerfile                   # Contenedor Docker para FastAPI
 │   ├── requirements.txt             # Dependencias del backend Python
 │   ├── run_server.py                # Lanzador del servidor Uvicorn
@@ -356,8 +357,11 @@ python -m app.etl.runner --region "" --limit 0 --skip-enrich
 # Reconciliar y enriquecer obras críticas y con 0% de avance físico:
 python -m app.etl.enrich_db --mode critical_and_zero --workers 6 --limit 100
 
-# Corregir y enriquecer exclusivamente obras con coordenadas en 0.0 desde GeoInvierte (MEF):
+# Corregir y enriquecer obras con coordenadas en 0.0 o centroides provisionales desde GeoInvierte a nivel nacional:
 python -m app.etl.enrich_db --mode geo_missing --workers 4 --limit 0
+
+# Enriquecimiento geográfico para una región específica (ej. Moquegua, Tacna, Cusco):
+python -m app.etl.enrich_db --mode geo_missing --region MOQUEGUA --workers 4 --limit 0
 ```
 
 ---

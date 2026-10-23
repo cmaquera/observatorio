@@ -73,6 +73,36 @@ Debido a que los datos abiertos del MEF pueden presentar cierto retraso frente a
 3. **Resiliencia HTTP y Caché Acotado**:
    Implementa encabezados de navegación realistas (`User-Agent: Mozilla/5.0`), timeouts de conexión controlados y caché en memoria protegido por `threading.Lock` con límite máximo de entradas (`MAX_CACHE_ENTRIES = 1000`).
 
+### 2.3 Sistema Nacional de Georreferenciación y Resolución Territorial (`ubigeo_helper.py` + `ubigeo_peru_distritos.json`)
+
+Para garantizar que ninguna obra quede desubicada ni se agrupe artificialmente en las capitales departamentales, el sistema implementa un motor cartográfico universal para todo el Perú:
+
+1. **Catálogo Nacional Universal del INEI**:
+   - Archivo estructurado `backend/app/data/ubigeo_peru_distritos.json` (~150 KB) que almacena los **1,893 distritos** y las **196 provincias** del Perú con sus coordenadas geodésicas oficiales (WGS84).
+   - Se precarga en memoria en **~13 milisegundos** al arrancar la aplicación, permitiendo búsquedas en tiempo $O(1)$ sin generar queries a la base de datos.
+2. **Cajas Delimitadoras Oficiales (`DEPARTAMENTOS_BOUNDS`)**:
+   - Define los límites cartográficos exactos (`lat_min, lat_max, lon_min, lon_max`) para los **25 departamentos** del país (24 departamentos + Callao).
+   - Incorpora un buffer de tolerancia de $\approx 5\text{ km}$ para no descartar obras limítrofes, puentes interdepartamentales o infraestructuras costeras y portuarias.
+3. **Cascada Jerárquica de Resolución (5 Niveles)**:
+   ```
+   [Nivel 1] GeoInvierte Oficial (Lat/Lon exacta del proyecto en ArcGIS MEF)
+        ↓  (si es nula, 0.0 o fuera del departamento)
+   [Nivel 2] Catálogo por código UBIGEO Distrital de 6 dígitos del INEI (1,893 distritos)
+        ↓  (si el UBIGEO no está registrado)
+   [Nivel 3] Búsqueda por tupla normalizada (DEPARTAMENTO, PROVINCIA, DISTRITO)
+        ↓  (si la obra abarca varios distritos)
+   [Nivel 4] Centroide de Capital Provincial oficial (196 provincias)
+        ↓  (si la obra es transversal a nivel regional GORE)
+   [Nivel 5] Centroide Institucional Departamental de Contingencia (Plaza de Armas capital)
+   ```
+4. **Detección de Centroides Provisionales (`es_centroide_provisional`)**:
+   - Identifica si una obra tiene asignado el punto de contingencia departamental o nacional (`-9.1899, -75.0152`).
+   - Permite que el pipeline masivo o la API de detalle (`GET /api/obras/{cui}`) reemplace automáticamente el centroide provisional por la coordenada real de GeoInvierte mediante *Write-Through* en caliente.
+5. **Enriquecimiento Geográfico Escalable (`--mode geo_missing`)**:
+   - El script `enrich_db.py` evalúa dinámicamente cualquier región (`--region MOQUEGUA`, `TACNA`, `CUSCO`, etc.) o todo el país, seleccionando obras con coordenadas `NULL`, `0.0`, centroides provisionales o puntos fuera del Bounding Box territorial.
+6. **Saneamiento Automático de Textos Oficiales (`_clean_mef_html_text`)**:
+   - Limpieza de etiquetas HTML residuales (`<br>`, `<p>`, `&nbsp;`) en las causales de retraso provenientes del Formato 12-B y SEACE, con formateo multilínea visualmente limpio (`whitespace-pre-line`) en la interfaz.
+
 ---
 
 ## 3. Modelo de Datos (Esquema Relacional)
