@@ -280,6 +280,28 @@ UBIGEO_DISTRITAL = {
     "180303": (-17.5833, -71.3333), # Pacocha
 }
 
+# Carga automática del catálogo nacional completo (1,893 distritos y 196 provincias oficiales del INEI)
+import os as _os
+import json as _json
+
+_DATA_PATH = _os.path.join(_os.path.dirname(__file__), "..", "data", "ubigeo_peru_distritos.json")
+if _os.path.exists(_DATA_PATH):
+    try:
+        with open(_DATA_PATH, "r", encoding="utf-8") as _f:
+            _catalog = _json.load(_f)
+            for _u, _coord in _catalog.get("ubigeo_distrital", {}).items():
+                UBIGEO_DISTRITAL[_u] = tuple(_coord)
+            for _k, _coord in _catalog.get("distritos", {}).items():
+                _parts = tuple(_k.split("|"))
+                if len(_parts) == 3:
+                    DISTRITO_CENTROIDS[_parts] = tuple(_coord)
+            for _k, _coord in _catalog.get("provincias", {}).items():
+                _parts = tuple(_k.split("|"))
+                if len(_parts) == 2:
+                    PROVINCIA_CENTROIDS[_parts] = tuple(_coord)
+    except Exception as _e:
+        pass
+
 
 def es_coordenada_peru_valida(lat, lon, departamento: str = None) -> bool:
     """
