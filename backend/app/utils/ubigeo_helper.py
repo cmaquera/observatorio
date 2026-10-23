@@ -95,6 +95,8 @@ PROVINCIA_CENTROIDS = {
     ("UCAYALI", "CORONEL PORTILLO"): (-8.3791, -74.5539),
     ("MADRE DE DIOS", "TAMBOPATA"): (-12.5933, -69.1891),
     ("MOQUEGUA", "MARISCAL NIETO"): (-17.1939, -70.9356),
+    ("MOQUEGUA", "ILO"): (-17.6394, -71.3375),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO"): (-16.6736, -70.9708),
     ("TUMBES", "TUMBES"): (-3.5669, -80.4515),
     ("LAMBAYEQUE", "CHICLAYO"): (-6.7714, -79.8409),
     ("HUANUCO", "HUANUCO"): (-9.9306, -76.2422),
@@ -162,6 +164,31 @@ DISTRITO_CENTROIDS = {
     ("TACNA", "TARATA", "SUSAPAYA"): (-17.3536, -70.1322),
     ("TACNA", "TARATA", "TARUCACHI"): (-17.5255, -70.0310),
     ("TACNA", "TARATA", "TICACO"): (-17.4453, -70.0472),
+
+    # Moquegua - Mariscal Nieto
+    ("MOQUEGUA", "MARISCAL NIETO", "MOQUEGUA"): (-17.1939, -70.9356),
+    ("MOQUEGUA", "MARISCAL NIETO", "CARUMAS"): (-16.8089, -70.6978),
+    ("MOQUEGUA", "MARISCAL NIETO", "CUCHUMBAYA"): (-16.7514, -70.6806),
+    ("MOQUEGUA", "MARISCAL NIETO", "SAMEGUA"): (-17.1758, -70.8986),
+    ("MOQUEGUA", "MARISCAL NIETO", "SAN CRISTOBAL"): (-16.7314, -70.6778),
+    ("MOQUEGUA", "MARISCAL NIETO", "TORATA"): (-17.0769, -70.8431),
+    # Moquegua - General Sánchez Cerro
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "OMATE"): (-16.6736, -70.9708),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "CHOJATA"): (-16.4028, -70.7208),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "COALAQUE"): (-16.6490, -71.0209),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "ICHUÑA"): (-16.1436, -70.5375),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "ICHUNA"): (-16.1436, -70.5375),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "LA CAPILLA"): (-16.7778, -71.2589),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "LLOQUE"): (-16.2917, -70.6289),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "MATALAQUE"): (-16.5167, -70.9833),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "PUQUINA"): (-16.6272, -71.1878),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "QUINISTAQUILLAS"): (-16.7314, -70.8842),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "UBINAS"): (-16.3089, -70.8572),
+    ("MOQUEGUA", "GENERAL SANCHEZ CERRO", "YUNGA"): (-16.2167, -70.6833),
+    # Moquegua - Ilo
+    ("MOQUEGUA", "ILO", "ILO"): (-17.6394, -71.3375),
+    ("MOQUEGUA", "ILO", "EL ALGARROBAL"): (-17.5751, -71.1499),
+    ("MOQUEGUA", "ILO", "PACOCHA"): (-17.5833, -71.3333),
 }
 
 # Diccionario por UBIGEO distrital específico
@@ -199,6 +226,27 @@ UBIGEO_DISTRITAL = {
     "080108": (-13.5255, -71.9560), # Wanchaq
     "080104": (-13.5510, -71.8840), # San Jerónimo
     "080105": (-13.5320, -71.9210), # San Sebastián
+    # Moquegua
+    "180101": (-17.1939, -70.9356), # Moquegua
+    "180102": (-16.8089, -70.6978), # Carumas
+    "180103": (-16.7514, -70.6806), # Cuchumbaya
+    "180104": (-17.1758, -70.8986), # Samegua
+    "180105": (-16.7314, -70.6778), # San Cristóbal
+    "180106": (-17.0769, -70.8431), # Torata
+    "180201": (-16.6736, -70.9708), # Omate
+    "180202": (-16.4028, -70.7208), # Chojata
+    "180203": (-16.6490, -71.0209), # Coalaque
+    "180204": (-16.1436, -70.5375), # Ichuña
+    "180205": (-16.7778, -71.2589), # La Capilla
+    "180206": (-16.2917, -70.6289), # Lloque
+    "180207": (-16.5167, -70.9833), # Matalaque
+    "180208": (-16.6272, -71.1878), # Puquina
+    "180209": (-16.7314, -70.8842), # Quinistaquillas
+    "180210": (-16.3089, -70.8572), # Ubinas
+    "180211": (-16.2167, -70.6833), # Yunga
+    "180301": (-17.6394, -71.3375), # Ilo
+    "180302": (-17.5751, -71.1499), # El Algarrobal
+    "180303": (-17.5833, -71.3333), # Pacocha
 }
 
 
